@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Corpus · META-MD (local)</title>
+    <meta name="description" content="Un corpus : sources, métadonnées, conversion.">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self';
+        img-src 'self' data:;
+        form-action 'self';
+    ">
+    <link rel="icon" type="image/png" href="assets/meta-md-16x16.png">
+    <link rel="apple-touch-icon" href="assets/meta-md-16x16.png">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="subpage" data-page="rag-theme">
+
+<header id="app-header">
+    <a class="brand" href="index.html">
+        <img class="brand-logo" src="assets/meta-md-64x80.png" alt="META-MD" width="80" height="64">
+    </a>
+</header>
+
+<main id="app-main">
+
+    <section class="rag-block hidden" id="message-block">
+        <strong data-bind="message-title">-</strong>
+        <p data-bind="message-text">-</p>
+    </section>
+
+    <div class="page-head">
+        <a class="btn ghost btn-back" href="index.html" title="Retour à la liste des corpus" aria-label="Retour à la liste des corpus"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
+        <h1 class="page-title">Corpus : <span id="theme-name">…</span></h1>
+    </div>
+
+    <!-- Suivi du pipeline (style suivi de livraison) -->
+    <section id="pipeline-tracker" class="pipeline-tracker">
+        <div class="pipeline-tracker-head">
+            <strong data-bind="next-step-title">Prochaine étape</strong>
+            <p data-bind="next-step-text">Chargement…</p>
+        </div>
+        <ol class="pipeline-track pipeline-track-5" id="pipeline-flow">
+            <li data-flow-step="extraction" title="Source">
+                <span class="pipeline-dot"><span class="pipeline-num-inner">1</span></span>
+                <span class="pipeline-label">Source</span>
+                <span class="pipeline-substatus muted small">…</span>
+            </li>
+            <li data-flow-step="schema" title="Schéma">
+                <span class="pipeline-dot"><span class="pipeline-num-inner">2</span></span>
+                <span class="pipeline-label">Schéma</span>
+                <span class="pipeline-substatus muted small">…</span>
+            </li>
+            <li data-flow-step="convert" title="Conversion doc par doc">
+                <span class="pipeline-dot"><span class="pipeline-num-inner">3</span></span>
+                <span class="pipeline-label">Conversion</span>
+                <span class="pipeline-substatus muted small">…</span>
+            </li>
+            <li data-flow-step="revision" title="Relecture et validation">
+                <span class="pipeline-dot"><span class="pipeline-num-inner">4</span></span>
+                <span class="pipeline-label">Validation</span>
+                <span class="pipeline-substatus muted small">…</span>
+            </li>
+            <li data-flow-step="markdown" title="Markdown avec front matter">
+                <span class="pipeline-dot"><span class="pipeline-num-inner">5</span></span>
+                <span class="pipeline-label">Markdown</span>
+                <span class="pipeline-substatus muted small">…</span>
+            </li>
+        </ol>
+    </section>
+
+    <!-- Étape 1. Source : lot prédéfini ou dépôt manuel des PDFs -->
+    <section id="extraction-block" class="tips-section">
+        <h2><span class="step-num" data-step="extraction">1</span> <i class="fa-solid fa-download" aria-hidden="true"></i> Source</h2>
+        <section class="rag-block hidden" id="msg-extraction">
+            <strong data-bind="message-title">-</strong>
+            <p data-bind="message-text">-</p>
+        </section>
+        <!-- Corpus de PDF : lot predefini ou depot manuel. Masque pour un
+             corpus de site, ou les documents viennent d'un depot git. -->
+        <p class="convert-cta" data-source-pdf>
+            <button type="button" class="btn primary" id="btn-open-sources" aria-expanded="false" aria-controls="add-sources-panel">
+                <i class="fa-solid fa-plus"></i> Ajouter des documents
+            </button>
+        </p>
+
+        <!-- Corpus de site : l'adresse d'un depot public remplace le depot de
+             fichiers. Revele par le JS selon la source du corpus. -->
+        <div id="depot-block" class="depot-block hidden" data-source-depot>
+            <div class="depot-form">
+                <label class="upload-field">
+                    <span>Adresse du dépôt <span class="req">*</span></span>
+                    <input type="text" id="depot-url" autocomplete="off" spellcheck="false"
+                           placeholder="https://github.com/proprietaire/depot">
+                </label>
+                <p class="muted small">GitHub ou GitLab, dépôt public. Les dépôts privés ne
+                sont pas pris en charge.</p>
+
+                <div class="depot-row">
+                    <label class="upload-field depot-ref">
+                        <span>Branche</span>
+                        <input type="text" id="depot-ref" autocomplete="off" spellcheck="false"
+                               placeholder="main puis master">
+                    </label>
+                    <label class="upload-field depot-site">
+                        <span>Adresse publique du site</span>
+                        <input type="text" id="depot-site-url" autocomplete="off" spellcheck="false"
+                               placeholder="https://mon-site.fr">
+                    </label>
+                </div>
+                <p class="muted small">La branche est facultative : sans elle, <code>main</code>
+                puis <code>master</code> sont essayées. L'adresse du site sert à faire pointer
+                chaque document vers sa page en ligne ; MkDocs la lit dans <code>mkdocs.yml</code>
+                quand elle y est.</p>
+
+                <p class="custom-upload">
+                    <button type="button" class="btn primary" id="btn-depot-fetch">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Récupérer
+                    </button>
+                    <span class="muted small" id="depot-status"></span>
+                </p>
+            </div>
+
+            <div id="depot-fiche" class="depot-fiche hidden"></div>
+        </div>
+
+        <!-- `data-replie` : ce panneau gere son propre pliage, par le bouton
+             ci-dessus. Le revelateur de source ne doit donc pas l'ouvrir. -->
+        <div id="add-sources-panel" class="add-sources-panel hidden" data-source-pdf data-replie>
+            <div class="lot-tabs">
+                <button type="button" class="lot-tab active" data-lot-mode="predefined">Lot prédéfini</button>
+                <button type="button" class="lot-tab" data-lot-mode="custom">Lot personnalisé</button>
+            </div>
+            <div class="lot-panel" data-lot-panel="predefined">
+                <div id="lots-list"><p class="muted small"><span class="spinner"></span>Chargement…</p></div>
+            </div>
+            <div class="lot-panel hidden" data-lot-panel="custom">
+                <div class="sources-drop" id="sources-drop">
+                    <input type="file" id="custom-sources-input" accept="application/pdf,.pdf" multiple hidden>
+                    <p class="sources-drop-main"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i> Glissez vos PDF ici</p>
+                    <p class="muted small">ou <button type="button" class="btn" id="btn-pick-sources">Parcourir…</button></p>
+                </div>
+
+                <div id="custom-sources-list" class="custom-sources-list"></div>
+
+                <div class="custom-upload">
+                    <button type="button" class="btn primary" id="btn-upload-sources" disabled>
+                        <i class="fa-solid fa-file-arrow-up"></i> Ajouter
+                    </button>
+                    <span class="muted small" id="custom-upload-status"></span>
+                </div>
+                <div id="custom-upload-result"></div>
+                <p class="muted small">Vous pouvez aussi déposer les fichiers directement dans <code id="sources-path">data/CORPUS/…/1-Sources/</code> puis recharger la page.</p>
+            </div>
+        </div>
+
+        <!-- Liste des documents actuellement dans 1-Sources/ + toggle exclusion -->
+        <div id="sources-inventory" class="sources-inventory">
+            <div class="sources-inventory-head">
+                <h3><i class="fa-solid fa-folder-open"></i> Documents</h3>
+                <span class="muted small" id="sources-inventory-count">…</span>
+            </div>
+            <p class="muted small">Décochez un document pour l'exclure du traitement. Recochez pour le réinclure.</p>
+            <div class="sources-inventory-toolbar hidden" id="sources-inventory-toolbar">
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="sources-inventory-all">
+                    <span>Tout traiter</span>
+                </label>
+                <input type="search" id="sources-inventory-filter" class="sources-inventory-filter" placeholder="Filtrer par nom…" autocomplete="off">
+            </div>
+            <div id="sources-inventory-list">
+                <p class="muted small"><span class="spinner"></span>Chargement…</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Étape 2. Schéma des métadonnées, avant la conversion : c'est lui qui
+         dit ce que la conversion doit lire dans le PDF. -->
+    <section id="schema-block" class="tips-section">
+        <h2><span class="step-num" data-step="schema">2</span> <i class="fa-solid fa-list-check" aria-hidden="true"></i> Schéma des métadonnées</h2>
+        <section class="rag-block hidden" id="msg-schema">
+            <strong data-bind="message-title">-</strong>
+            <p data-bind="message-text">-</p>
+        </section>
+
+        <div id="schema-editor">
+            <p class="muted small"><span class="spinner"></span>Chargement…</p>
+        </div>
+    </section>
+
+    <!-- Étape 3. Conversion doc par doc -->
+    <section class="tips-section">
+        <h2><span class="step-num" data-step="convert">3</span> <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Conversion</h2>
+        <p class="muted small">Conversion Markdown et remplissage des métadonnées.</p>
+        <p class="step-warning hidden" id="convert-locked-note">
+            <i class="fa-solid fa-lock" aria-hidden="true"></i> La conversion attend que le schéma
+            soit validé et verrouillé à l'étape 2 : elle lit les champs du schéma dans le PDF au
+            passage, elle a besoin de les connaître avant de partir.
+        </p>
+        <p class="convert-cta">
+            <a class="btn primary" id="btn-open-conversions" href="conversions.html">
+                <i class="fa-solid fa-arrow-right"></i> Ouvrir la page de conversions
+            </a>
+            <span class="muted small" id="convert-summary">Chargement…</span>
+        </p>
+
+        <!-- Remplissage des champs vides. Le bloc n'apparaît que lorsqu'il
+             reste des trous. Il en reste maintenant à chaque conversion : le
+             seul moteur restant ne lit pas les métadonnées, contrairement à
+             Mistral Document AI, retiré le 2026-08-23. -->
+        <div id="fill-block" class="hidden fill-inline">
+            <p class="step-warning" id="fill-stale-note">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                <span id="fill-stale-text"></span>
+            </p>
+            <p class="convert-cta">
+                <button type="button" class="btn primary" id="btn-fill">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Remplir les champs vides
+                </button>
+                <span class="muted small" id="fill-summary"></span>
+            </p>
+            <p class="muted small hidden" id="fill-progress"></p>
+        </div>
+    </section>
+
+    <!-- Étape 4. Relecture dans le viewer et validation -->
+    <section id="revision-block" class="tips-section">
+        <h2><span class="step-num" data-step="revision">4</span> <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Validation</h2>
+        <p class="muted small">Contrôle du Markdown obtenu et des métadonnées.</p>
+        <!-- Avant d'ouvrir la page de validation : ce qu'on vient y chercher,
+             et les endroits ou la conversion derape le plus souvent. -->
+        <p class="guide-encadre">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>Une conversion n'est jamais parfaite. Une relecture détaillée
+            est nécessaire. Les éléments à contrôler en priorité sont : les
+            titres et leur hiérarchie, les tableaux, les listes, les
+            métadonnées et tous les éléments à cheval sur deux pages.</span>
+        </p>
+        <p class="step-warning hidden" id="revision-locked-note">
+            <i class="fa-solid fa-lock" aria-hidden="true"></i> <span id="revision-locked-text"></span>
+        </p>
+        <p class="convert-cta">
+            <a class="btn primary" id="btn-open-revision" href="validation.html">
+                <i class="fa-solid fa-arrow-right"></i> Ouvrir la page de validation
+            </a>
+            <span class="muted small" id="revision-summary-line">Chargement…</span>
+        </p>
+    </section>
+
+    <!-- Étape 5. Les Markdown produits, un par document converti. -->
+    <section class="tips-section">
+        <h2><span class="step-num" data-step="markdown">5</span> <i class="fa-solid fa-file-lines" aria-hidden="true"></i> Markdown</h2>
+        <!-- Un avertissement, pas un verrou : le telechargement reste
+             possible, on signale seulement ce qu'on emporte. D'ou le triangle
+             et non le cadenas des etapes gardees. -->
+        <p class="step-warning hidden" id="markdown-warning-note">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> <span id="markdown-warning-text"></span>
+        </p>
+        <div id="md-inventory" class="sources-inventory">
+            <div class="sources-inventory-head">
+                <h3><i class="fa-solid fa-file-lines"></i> Markdown</h3>
+                <span class="muted small" id="md-inventory-count">…</span>
+            </div>
+
+            <p class="md-inventory-actions">
+                <button type="button" class="btn" id="btn-md-zip" disabled>
+                    <i class="fa-solid fa-file-zipper"></i> Télécharger le ZIP
+                </button>
+            </p>
+            <p class="muted small md-inventory-suite">L'archive contient le fichier Markdown de chaque document coché, accompagné de son document d'origine quand celui-ci est encore présent.</p>
+            <p class="md-inventory-select">
+                <label class="checkbox-inline muted small">
+                    <input type="checkbox" id="md-inv-all" checked>
+                    <span>Tout sélectionner</span>
+                </label>
+            </p>
+            <div id="md-inventory-list"><p class="muted small"><span class="spinner"></span>Chargement…</p></div>
+        </div>
+    </section>
+
+
+</main>
+
+<script src="assets/app.js" defer></script>
+</body>
+</html>

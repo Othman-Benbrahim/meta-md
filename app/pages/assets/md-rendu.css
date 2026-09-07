@@ -1,0 +1,293 @@
+/* ===========================================================================
+ * RENDU MARKDOWN — LE SEUL ENDROIT OU SE REGLE L'APPARENCE D'UN DOCUMENT
+ * ===========================================================================
+ *
+ * Tout ce qui habille un `.md` rendu est ici, et nulle part ailleurs. Pour
+ * changer une couleur de titre, une taille, un tableau : c'est ce fichier,
+ * a la main, sans chercher dans le CSS de l'application.
+ *
+ * Une seule regle a respecter pour que cela tienne : le conteneur qui recoit
+ * le HTML porte la classe `md-render`, et AUCUNE feuille de l'application ne
+ * style ce qu'il y a dedans. Les surfaces qui l'emploient :
+ *
+ *   - META-MD    visualiseur   `#md-content`
+ *   - EduMD     lecture       `#viewer-body`   (le bouton « Lire »)
+ *   - EduMD     visualiseur   `#md-content`
+ *
+ * Le fichier est le MEME octet pour octet dans les deux projets : c'est ce
+ * qui fait qu'un document se lit pareil partout. Le modifier d'un cote sans
+ * l'autre les fait diverger.
+ *
+ * Ce qui n'est PAS ici : la boite qui contient le rendu — largeur, marges,
+ * fond du panneau, barre de defilement. Cela appartient a chaque page, qui
+ * n'a pas les memes panneaux.
+ *
+ * Les valeurs viennent des jetons de l'application (`--accent`, `--border`,
+ * `--panel`…), sauf les couleurs de titre, definies ci-dessous : elles
+ * n'appartiennent qu'au document.
+ */
+
+/* La typographie du document fait partie du rendu, elle voyage donc avec
+   cette feuille plutot que d'etre laissee a chaque projet — sans quoi le
+   meme document se lirait dans deux polices.
+
+   Inter est embarquee (`assets/fonts/inter/`), jamais appelee a un CDN : la
+   CSP `default-src 'self'` bloque tout appel externe. Le chemin est relatif a
+   ce fichier, et il tombe juste des deux cotes, les deux projets rangeant
+   leurs polices sous `assets/`. */
+@font-face {
+    font-family: "Inter";
+    src: url("fonts/inter/InterVariable.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Inter";
+    src: url("fonts/inter/InterVariable-Italic.woff2") format("woff2");
+    font-style: italic;
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+:root {
+    /* Palette des titres : un bleu par niveau, du plus sombre au plus clair.
+       La profondeur se lit alors deux fois, dans la taille et dans la valeur,
+       et un titre garde son rang meme lorsqu'on parcourt la page sans la
+       lire. La couleur separe notamment H3 de H4, que la taille distingue a
+       peine.
+
+       Un jeton par niveau, et non deux jetons pour six niveaux : c'est ce qui
+       permet d'essayer une palette en ne touchant qu'ici. */
+    --md-h1: #001C4B;
+    --md-h2: #00317D;
+    --md-h3: #0144B7;
+    --md-h4: #0159DF;
+    --md-h5: #1871FF;
+    --md-h6: #4A92FF;
+}
+
+/* --- Le corps du document -------------------------------------------- */
+
+.md-render {
+    /* La pile du projet reste en secours : si le woff2 manque, le document
+       se lit dans la police de l'application plutot que dans celle du
+       navigateur. */
+    font-family: "Inter", var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+/* --- Titres ----------------------------------------------------------- */
+/* Les pages stylent leurs propres `h2`, `h3` : petits, en capitales, bleus,
+   ce sont des intitules de panneau. Un titre de document n'a rien a voir
+   avec ca, on repart donc d'une base neutre avant de poser l'echelle. */
+.md-render h1, .md-render h2, .md-render h3,
+.md-render h4, .md-render h5, .md-render h6 {
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+/* Les niveaux suivent une echelle relative au texte. Les petits intertitres
+   restent proches du corps et la casse du document est conservee : les
+   capitales ne doivent pas inventer une importance absente du Markdown. */
+.md-render h1 {
+    margin: 0 0 .7rem;
+    font-size: 1.8em;
+    color: var(--md-h1);
+}
+.md-render h2 {
+    margin: 1.6rem 0 .5rem;
+    padding-bottom: .3rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 1.45em;
+    color: var(--md-h2);
+}
+.md-render h3 {
+    margin: 1.3rem 0 .4rem;
+    font-size: 1.2em;
+    color: var(--md-h3);
+}
+.md-render h4 { margin: 1.1rem 0 .3rem; font-size: 1.08em; color: var(--md-h4); }
+.md-render h5 { margin: 1rem 0 .3rem;   font-size: 1em; color: var(--md-h5); }
+.md-render h6 {
+    margin: .9rem 0 .3rem;
+    font-size: 1em;
+    color: var(--md-h6);
+}
+
+/* --- Texte courant ---------------------------------------------------- */
+
+.md-render p { margin: .5rem 0; }
+.md-render ul, .md-render ol { margin: .4rem 0 .4rem 1.6rem; padding: 0; }
+.md-render li { margin: .15rem 0; }
+.md-render a { color: var(--accent); }
+.md-render img { max-width: 100%; }
+.md-render hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+.md-render code {
+    padding: .05rem .3rem;
+    border-radius: 3px;
+    background: var(--panel-alt);
+    font-family: var(--font-code);
+    font-size: .85em;
+}
+.md-render pre {
+    margin: .6rem 0;
+    padding: .7rem .9rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel-alt);
+    font-family: var(--font-code);
+    overflow-x: auto;
+}
+.md-render pre code { padding: 0; background: transparent; }
+/* Le theme de highlight.js repeint le fond de ses blocs : on le lui reprend,
+   la boite est deja dessinee au-dessus. Seules ses couleurs de jeton restent. */
+.md-render pre code.hljs { padding: 0; background: transparent; }
+/* Le langage reconnu, en filigrane dans le coin du bloc. Il est devine a
+   l'affichage et non ecrit dans le `.md` : c'est une indication, pas une
+   declaration du document. */
+.md-render pre { position: relative; }
+.md-render pre > code[data-langage]::after {
+    content: attr(data-langage);
+    position: absolute;
+    top: .3rem;
+    right: .5rem;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: .62rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+/* Formules composees par KaTeX. Une formule isolee peut deborder d'une
+   colonne etroite : elle defile pour elle-meme plutot que d'elargir la page. */
+.md-render .katex { font-size: 1.05em; }
+.md-render .katex-display {
+    margin: .8rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+/* Une formule que KaTeX n'a pas su lire : signalee sans crier. */
+.md-render .katex-error { color: var(--error); }
+
+/* Un filet gris fonce, pas la couleur d'accent : une citation est du contenu
+   du document — souvent la description d'une figure — elle n'a pas a se
+   signaler comme un element de l'interface. */
+.md-render blockquote {
+    margin: .6rem 0;
+    padding: .3rem .9rem;
+    border-left: 3px solid var(--muted-strong);
+    color: var(--text-soft);
+}
+
+/* --- Tableaux --------------------------------------------------------- */
+/* Ils arrivent en HTML, seule forme capable de porter une cellule fusionnee
+   ou une liste dans une cellule. */
+
+.md-render table {
+    width: 100%;
+    /* Colonnes a parts egales : les tableaux des programmes ont deux colonnes
+       de texte dense, et un dimensionnement au contenu en ecrase une contre
+       l'autre. */
+    table-layout: fixed;
+    margin: .7rem 0;
+    border-collapse: collapse;
+    font-size: .85rem;
+}
+.md-render th, .md-render td {
+    padding: .35rem .6rem;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+/* Trois formes de <th> coexistent dans les documents convertis, et elles ne
+   disent pas la meme chose. Mesure sur le corpus au 2026-08-23 : 215 en-tetes
+   de colonnes dans un <thead>, 113 bandes de titre repliees dans le tableau
+   (<th colspan>, produites par `_replier_titres_dans_tableaux` quand la
+   bordure du PDF englobe l'intitule d'une partie et sa grille), et 26 en-tetes
+   que le moteur n'a pas enveloppes dans un <thead>.
+
+*/
+.md-render th { background: var(--panel-alt); font-weight: 600; }
+
+/* Un <th> dans un <thead> est un en-tete declare : le document affirme que
+   cette ligne nomme ses colonnes. Il se marque donc plus franchement — le
+   gris d'avant (#f9fafb) ne se detachait pas du blanc de la surface de
+   lecture, et c'est sur blanc qu'on lit un Markdown, dans le viewer comme
+   dans EduMD, et non sur le gris de l'application.
+   Un <th> hors <thead> garde le fond discret : rien ne dit qu'il annonce
+   des colonnes, c'est peut-etre le moteur qui a omis le <thead>. */
+.md-render thead th { background: #eceff3; }
+
+/* Bande de titre pleine largeur : elle annonce une section, pas une colonne.
+   Elle garde le fond commun des <th> (`--panel-alt`) : seuls les en-tetes
+   declares dans un <thead> ont ete marques davantage. Ce qui la distingue
+   d'un en-tete de colonnes n'est donc pas la teinte mais la forme : pleine
+   largeur, alignee a gauche, plus grasse et legerement plus grande. */
+.md-render th[colspan] { font-weight: 700;
+                         text-align: left; font-size: 1.02em; }
+/* Une liste dans une cellule ne doit pas y ouvrir de grandes marges : la
+   cellule est deja son retrait. */
+.md-render td ul, .md-render td ol,
+.md-render th ul, .md-render th ol { margin: .2rem 0 .2rem 1.1rem; }
+
+/* --- Frontieres de page ----------------------------------------------- */
+/* Posees par la conversion (`<!-- page N -->`). C'est un repere de
+   provenance, pas du contenu : un filet et une pastille, rien qui vienne
+   concurrencer un titre. */
+
+.md-render .md-page-mark {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: 1.6rem 0 1.1rem;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    user-select: none;
+}
+.md-render .md-page-mark::before,
+.md-render .md-page-mark::after {
+    content: "";
+    flex: 1 1 auto;
+    border-top: 1px dashed var(--border);
+}
+.md-render .md-page-mark span {
+    padding: .1rem .55rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    white-space: nowrap;
+}
+/* Cliquable la ou un PDF est affiche a cote : le repere y amene l'apercu sur
+   la page correspondante. C'est le script qui pose la classe, seulement
+   quand l'action est vraiment possible. */
+.md-render .md-page-mark.clickable { cursor: pointer; }
+.md-render .md-page-mark.clickable:hover,
+.md-render .md-page-mark.clickable:focus-visible {
+    color: var(--accent);
+    outline: none;
+}
+.md-render .md-page-mark.clickable:hover span,
+.md-render .md-page-mark.clickable:focus-visible span { border-color: var(--accent); }
+
+/* Reperes masques a la demande : pour lire d'une traite, ou copier un
+   passage sans emporter les frontieres de page. */
+.md-render.sans-pages .md-page-mark { display: none; }
+
+/* Les autres commentaires du `.md` : une page en echec, un timeout. C'est la
+   seule trace de ce qui manque, elle se lit en note. */
+.md-render .md-comment {
+    margin: .6rem 0;
+    color: var(--muted);
+    font-size: .78rem;
+    font-style: italic;
+}

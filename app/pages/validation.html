@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Validation · META-MD (local)</title>
+    <meta name="description" content="Relire chaque document et valider Markdown et métadonnées.">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self';
+        img-src 'self' data:;
+        form-action 'self';
+    ">
+    <link rel="icon" type="image/png" href="assets/meta-md-16x16.png">
+    <link rel="apple-touch-icon" href="assets/meta-md-16x16.png">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="subpage" data-page="revision">
+
+<header id="app-header">
+    <a class="brand" href="index.html">
+        <img class="brand-logo" src="assets/meta-md-64x80.png" alt="META-MD" width="32" height="32">
+    </a>
+</header>
+
+<main id="app-main">
+
+    <div class="page-head">
+        <a class="btn ghost btn-back" id="revision-back-link" href="corpus.html" title="Retour au corpus" aria-label="Retour au corpus"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
+        <h1 class="page-title">Validation : <span id="revision-theme-name">…</span></h1>
+    </div>
+    <section id="revision-block" class="tips-section">
+
+        <section class="rag-block hidden" id="message-block-local">
+            <strong data-bind="message-title">-</strong>
+            <p data-bind="message-text">-</p>
+        </section>
+
+        <div id="revision-summary"></div>
+
+        <!-- Ligne d'en-tete de la liste : le rond de validation en lot tombe
+             exactement dans la colonne des ronds de chaque document. -->
+        <div class="sources-list-head sources-list-head-left hidden" id="revision-validate-head">
+            <button type="button" class="valid-dot valid-dot-all off" id="btn-validate-all" data-state="0"
+                    title="Valider tous les documents convertis">
+                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                <i class="fa-solid fa-check valid-dot-all-second" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div id="revision-list">
+            <p class="muted small"><span class="spinner"></span>Chargement…</p>
+        </div>
+    </section>
+
+</main>
+
+<script src="assets/app.js" defer></script>
+</body>
+</html>

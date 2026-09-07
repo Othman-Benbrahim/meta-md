@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Corpus · META-MD (local)</title>
+    <meta name="description" content="Vos corpus locaux.">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self';
+        img-src 'self' data:;
+        form-action 'self';
+    ">
+    <link rel="icon" type="image/png" href="assets/meta-md-16x16.png">
+    <link rel="apple-touch-icon" href="assets/meta-md-16x16.png">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="subpage">
+
+<header id="app-header">
+    <a class="brand" href="index.html">
+        <img class="brand-logo" src="assets/meta-md-64x80.png" alt="META-MD" width="32" height="32">
+    </a>
+</header>
+
+<main id="app-main">
+
+    <section class="rag-block hidden" id="message-block">
+        <strong data-bind="message-title">-</strong>
+        <p data-bind="message-text">-</p>
+    </section>
+
+    <div class="page-head">
+        <h1 class="page-title">Vos corpus</h1>
+    </div>
+
+    <section class="tips-section">
+        <div class="section-header">
+            <button type="button" class="btn ghost" data-open-dialog="help-create">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i> Créer un nouveau corpus
+            </button>
+        </div>
+        <div id="rag-topics-container">
+            <p class="muted small"><span class="spinner"></span>Chargement…</p>
+        </div>
+    </section>
+
+    <dialog class="app-modal step-info-modal" id="help-create">
+        <header>
+            <h3>Créer un nouveau corpus</h3>
+            <button type="button" data-close-dialog aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+        </header>
+        <div class="modal-body create-corpus">
+            <label class="upload-field">
+                <span>Nom du corpus <span class="req">*</span></span>
+                <input type="text" id="new-corpus-name" placeholder="Programmes du primaire" autocomplete="off">
+            </label>
+            <p class="muted small">Écrivez-le comme vous voulez, espaces et accents compris. Le
+            dossier sera <code id="new-corpus-slug">data/CORPUS/…/</code>. Les documents s'ajoutent
+            ensuite depuis la page du corpus.</p>
+
+            <fieldset class="source-picker">
+                <legend>D'où viennent les documents ?</legend>
+                <div class="source-choices" role="radiogroup" aria-label="Source des documents">
+                    <label class="source-choice">
+                        <input type="radio" name="corpus-source" value="pdf" checked>
+                        <span class="source-card">
+                            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+                            <strong>PDF</strong>
+                            <span class="muted small">Fichiers déposés, convertis par un moteur</span>
+                        </span>
+                    </label>
+                    <label class="source-choice">
+                        <input type="radio" name="corpus-source" value="11ty">
+                        <span class="source-card">
+                            <i class="fa-solid fa-code-branch" aria-hidden="true"></i>
+                            <strong>11ty</strong>
+                            <span class="muted small">Markdown d'un site, depuis un dépôt</span>
+                        </span>
+                    </label>
+                    <label class="source-choice">
+                        <input type="radio" name="corpus-source" value="mkdocs">
+                        <span class="source-card">
+                            <i class="fa-solid fa-book" aria-hidden="true"></i>
+                            <strong>MkDocs</strong>
+                            <span class="muted small">Markdown d'un site, depuis un dépôt</span>
+                        </span>
+                    </label>
+                </div>
+                <p class="muted small">Ce choix est fixé à la création : il décide de la façon
+                dont les documents entrent dans le corpus, et ne change plus ensuite.</p>
+            </fieldset>
+            <p class="custom-upload">
+                <button type="button" class="btn primary" id="btn-create-corpus">
+                    <i class="fa-solid fa-plus"></i> Créer
+                </button>
+                <span class="muted small" id="new-corpus-status"></span>
+            </p>
+        </div>
+    </dialog>
+
+</main>
+
+<script src="assets/app.js" defer></script>
+</body>
+</html>

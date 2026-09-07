@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Les trois formes de &lt;th&gt; — comparaison</title>
+    <link rel="stylesheet" href="assets/app.css">
+    <link rel="stylesheet" href="assets/md-rendu.css">
+    <style>
+        /* Page de demonstration, a supprimer une fois le choix fait.
+           Elle charge les deux feuilles reelles de l'application : ce qui
+           s'affiche ici est exactement ce que rendent le viewer et EduMD. */
+        body { padding: 1.5rem 2rem 4rem; max-width: 68rem; }
+        /* Le Markdown se lit sur BLANC — c'est le fond du volet du viewer
+           (`.viewer-pane.md`) et celui d'EduMD. Comparer des fonds d'en-tete
+           sur le gris de l'application les ecrasait tous. */
+        .md-render {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: .9rem 1rem;
+        }
+        .pastille {
+            display: inline-block; width: .8rem; height: .8rem;
+            border: 1px solid var(--border-strong); border-radius: 2px;
+            vertical-align: -1px; margin-right: .35rem;
+        }
+        h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
+        .sous { color: var(--muted); margin: 0 0 2rem; font-size: .9rem; }
+        .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 1000px) { .duo { grid-template-columns: 1fr; } }
+        .colonne > h2 {
+            font-size: .8rem; text-transform: uppercase; letter-spacing: .05em;
+            color: var(--primary, #0d6efd); margin: 0 0 .2rem;
+        }
+        .colonne > p.note { color: var(--muted); font-size: .82rem; margin: 0 0 .9rem; }
+        .cas { margin: 0 0 1.6rem; }
+        .cas > .etiquette {
+            font-family: var(--font-mono); font-size: .74rem; color: var(--muted);
+            margin-bottom: .3rem;
+        }
+        .compte { font-weight: 700; color: var(--text); }
+
+        /* ---- La proposition, limitee a la colonne de droite ---- */
+        .propose .md-render thead th { font-weight: 600; }
+        /* Trois intensites d'en-tete, a comparer. */
+        /* La classe est posee SUR le `.md-render`, pas au-dessus : le
+           selecteur descendant ne matchait rien. */
+        .md-render.v-actuel thead th { background: var(--panel-alt); }   /* #f9fafb */
+        .md-render.v-gris   thead th { background: #eceff3;
+                                       border-bottom: 2px solid var(--border-strong); }
+        .md-render.v-bleu   thead th { background: var(--accent-soft);
+                                       color: var(--accent-strong);
+                                       border-bottom: 2px solid #a8c7fa; }
+        .propose .md-render th[colspan] {
+            background: transparent;
+            font-weight: 700;
+            text-align: left;
+            font-size: 1.02em;
+            border-bottom: 2px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+<h1>Les trois formes de <code>&lt;th&gt;</code> du corpus</h1>
+<p class="sous">
+    À gauche le rendu actuel, à droite la proposition. Les deux colonnes
+    chargent <code>assets/md-rendu.css</code>, la feuille partagée avec EduMD.
+</p>
+
+<div class="duo">
+
+    <div class="colonne actuel">
+        <h2>Aujourd'hui</h2>
+        <p class="note">Une seule règle : <code>.md-render th</code> — fond gris, gras.</p>
+
+        <div class="cas">
+            <div class="etiquette">1. En-tête de colonnes, dans un &lt;thead&gt; — <span class="compte">215</span> occurrences</div>
+            <div class="md-render">
+                <table>
+                    <thead><tr><th>Questions</th><th>Commentaire</th></tr></thead>
+                    <tr>
+                        <td><ul><li>Des milieux à valoriser et à ménager.</li>
+                                <li>Les défis de la transition.</li></ul></td>
+                        <td>L'objectif est de comprendre comment une aire géographique
+                            est concernée par les processus étudiés.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette">2. Bande de titre repliée, &lt;th colspan&gt; — <span class="compte">113</span> occurrences</div>
+            <div class="md-render">
+                <table>
+                    <tr><th colspan="2">Chapitre 1. La Méditerranée antique : les empreintes grecques et romaines</th></tr>
+                    <tr>
+                        <td>Objectifs du chapitre</td>
+                        <td>Ce chapitre vise à montrer comment la Méditerranée
+                            est un espace d'échanges.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette">3. &lt;th&gt; simple, hors &lt;thead&gt; — <span class="compte">26</span> occurrences</div>
+            <div class="md-render">
+                <table>
+                    <tr><th>Notions</th><th>Repères</th></tr>
+                    <tr><td>Acteur, mondialisation, territoire.</td>
+                        <td>Changement climatique, ressources.</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="colonne propose">
+        <h2>Proposition</h2>
+        <p class="note">
+            Trois intensités d'en-tête à comparer (A, B, C), puis la bande de
+            titre transformée en intertitre.
+        </p>
+
+        <div class="cas">
+            <div class="etiquette"><span class="pastille" style="background:#f9fafb"></span>A — actuel <code>#f9fafb</code>, presque blanc</div>
+            <div class="md-render v-actuel">
+                <table>
+                    <thead><tr><th>Questions</th><th>Commentaire</th></tr></thead>
+                    <tr>
+                        <td><ul><li>Des milieux à valoriser et à ménager.</li>
+                                <li>Les défis de la transition.</li></ul></td>
+                        <td>L'objectif est de comprendre comment une aire géographique
+                            est concernée par les processus étudiés.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette"><span class="pastille" style="background:#eceff3"></span>B — gris marqué <code>#eceff3</code> + filet</div>
+            <div class="md-render v-gris">
+                <table>
+                    <thead><tr><th>Questions</th><th>Commentaire</th></tr></thead>
+                    <tr>
+                        <td><ul><li>Des milieux à valoriser et à ménager.</li>
+                                <li>Les défis de la transition.</li></ul></td>
+                        <td>L'objectif est de comprendre comment une aire géographique
+                            est concernée par les processus étudiés.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette"><span class="pastille" style="background:var(--accent-soft)"></span>C — bleu de la charte <code>--accent-soft</code></div>
+            <div class="md-render v-bleu">
+                <table>
+                    <thead><tr><th>Questions</th><th>Commentaire</th></tr></thead>
+                    <tr>
+                        <td><ul><li>Des milieux à valoriser et à ménager.</li>
+                                <li>Les défis de la transition.</li></ul></td>
+                        <td>L'objectif est de comprendre comment une aire géographique
+                            est concernée par les processus étudiés.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette">2. Bande de titre — se lit comme une annonce de section</div>
+            <div class="md-render">
+                <table>
+                    <tr><th colspan="2">Chapitre 1. La Méditerranée antique : les empreintes grecques et romaines</th></tr>
+                    <tr>
+                        <td>Objectifs du chapitre</td>
+                        <td>Ce chapitre vise à montrer comment la Méditerranée
+                            est un espace d'échanges.</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="cas">
+            <div class="etiquette">3. &lt;th&gt; simple — à trancher : traité comme un en-tête ?</div>
+            <div class="md-render">
+                <table>
+                    <tr><th>Notions</th><th>Repères</th></tr>
+                    <tr><td>Acteur, mondialisation, territoire.</td>
+                        <td>Changement climatique, ressources.</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

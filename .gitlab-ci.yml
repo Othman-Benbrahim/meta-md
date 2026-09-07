@@ -1,0 +1,99 @@
+stages:
+  - test
+  - build
+  - release
+
+python-tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - PYTHONPATH=app python -m unittest discover -s lanceur/tests -v
+    - python -m py_compile app/server.py app/modules/updates.py lanceur/*.py
+
+javascript-syntax:
+  stage: test
+  image: node:22-alpine
+  script:
+    - node --check app/pages/assets/app.js
+
+conversion-tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install -r app/requirements.txt
+    - python -m unittest discover -s app/tests -v
+
+build-release:
+  stage: build
+  image: python:3.12-slim
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - VERSION="${CI_COMMIT_TAG#v}"
+    - test "$VERSION" = "$(tr -d '\r\n' < app/VERSION)"
+    - python lanceur/build_package.py
+    - python lanceur/build_installer.py
+    - PACKAGE_FILE="lanceur/dist/metamd-${VERSION}.zip"
+    - INSTALLER_FILE="lanceur/dist/metamd-installation-${VERSION}.zip"
+    - PACKAGE_REGISTRY_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/metamd/${VERSION}"
+    # Le paquet de mise a jour n'est pas attache a la release : la page des
+    # versions ne doit proposer que l'installation complete a qui debute.
+    # Son adresse est celle du registre, que seule META-MD lit dans le manifeste.
+    - PACKAGE_PUBLIC_URL="${PACKAGE_REGISTRY_URL}/metamd-${VERSION}.zip"
+    - RELEASE_URL="${CI_PROJECT_URL}/-/releases/${CI_COMMIT_TAG}"
+    - python lanceur/build_manifest.py "$PACKAGE_FILE" "$PACKAGE_PUBLIC_URL" "$RELEASE_URL" lanceur/dist/update-manifest.json --summary "META-MD ${VERSION}"
+    # L'envoi se faisait dans une etape a part, sous l'image curl : une file
+    # d'attente et un tirage d'image pour deux cents secondes de travail.
+    - python lanceur/publier_paquets.py --registre "$PACKAGE_REGISTRY_URL" "$PACKAGE_FILE" "$INSTALLER_FILE" lanceur/dist/update-manifest.json
+    - printf 'VERSION=%s\nPACKAGE_FILE=%s\nINSTALLER_FILE=%s\nPACKAGE_REGISTRY_URL=%s\n' "$VERSION" "$PACKAGE_FILE" "$INSTALLER_FILE" "$PACKAGE_REGISTRY_URL" > release.env
+  artifacts:
+    paths:
+      - lanceur/dist/
+    reports:
+      dotenv: release.env
+
+publish-release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - job: build-release
+      artifacts: true
+  script:
+    - echo "Publication de META-MD ${VERSION}"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: META-MD $VERSION
+    description: |
+      ### Première installation
+
+      Téléchargez **Installation complète — META-MD $VERSION**, décompressez
+      l'archive où vous voulez, puis lancez **META-MD-win-1-installer.bat** (Windows)
+      ou **./META-MD-linux-1-installer.sh** (Linux/macOS). L'installateur récupère un
+      Python portable dans le dossier : rien ne s'installe ailleurs sur la
+      machine.
+
+      **Windows affichera « éditeur inconnu »** au premier lancement : c'est la
+      marque que Windows appose sur tout fichier téléchargé. Pour l'éviter,
+      faites clic droit sur l'archive → Propriétés → **Débloquer**, avant de la
+      décompresser.
+
+      Ouvrez ensuite avec **META-MD-win-2-ouvrir.bat** ou **./META-MD-linux-2-ouvrir.sh**, et
+      renseignez votre clé Albert dans la configuration. Sans elle, aucune conversion n'est possible.
+
+      ### Vous avez une version précédente ?
+
+      Aucun téléchargement ici. META-MD vérifie les nouvelles versions lui-même
+      et propose de les installer depuis son interface. Vos corpus, votre
+      configuration et vos rapports ne sont jamais remplacés.
+    assets:
+      links:
+        - name: Installation complète — META-MD $VERSION
+          url: $PACKAGE_REGISTRY_URL/metamd-installation-$VERSION.zip
+          filepath: /metamd-installation.zip
+          link_type: package
+        - name: Manifeste des versions
+          url: $PACKAGE_REGISTRY_URL/update-manifest.json
+          filepath: /update-manifest.json
+          link_type: other

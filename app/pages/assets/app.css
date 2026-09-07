@@ -1,0 +1,4500 @@
+/*
+ * MD-RAG - style clair type "audit-depot"
+ * Inspiration : layout monospace, cartes blanches, badges verts pour le statut.
+ */
+
+:root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-alt: #f9fafb;
+    --border: #dde1e6;
+    --border-strong: #c0c7d0;
+    --text: #1a1d21;
+    --text-soft: #40474f;
+    --muted: #6b7280;
+    --muted-strong: #4b5563;
+    --accent: #0d6efd;          /* bleu dominant MD-RAG (13,110,253) */
+    --accent-soft: #cfe2ff;
+    --accent-strong: #0a58ca;
+    --success: #198754;
+    --success-soft: #d1e7dd;
+    --error: #dc2626;
+    --error-soft: #fee2e2;
+    --warning: #eab308;
+    --warning-soft: #fef9c3;
+    --info: #2563eb;
+    --info-soft: #dbeafe;
+
+    --font-mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "SF Mono", Consolas, Monaco, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Ce que `md-rendu.css` appelle du code : `code` et `pre` d'un document.
+       Le nom vient d'EduMD, ou `--font-mono` est une police proportionnelle ;
+       ici les deux coincident, mais le jeton doit exister pour que la feuille
+       partagee reste la meme des deux cotes. */
+    --font-code: var(--font-mono);
+}
+
+* { box-sizing: border-box; }
+[hidden], .hidden { display: none !important; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+a { color: var(--info); text-decoration: underline; }
+a:hover { color: #1d4ed8; }
+
+/* Notification non bloquante d'une nouvelle version. */
+/* Le bandeau vit en bas de la colonne de gauche. Celle-ci est un flex en
+   COLONNE : `flex-basis` y commanderait la hauteur, et `align-items:
+   flex-start` empeche l'etirement — d'ou une largeur explicite et un
+   `flex: 0 0 auto` qui laisse la hauteur suivre le contenu. */
+.update-notice {
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0.6rem 0 0;
+    padding: 0.6rem;
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    background: var(--panel);
+}
+.update-notice strong { font-size: 0.78rem; line-height: 1.3; display: block; }
+/* Hors des pages a en-tete (viewer, exemples), il reprend sa place flottante. */
+.update-notice.update-notice-flottant {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 100;
+    flex-basis: auto;
+    width: min(28rem, calc(100vw - 2rem));
+    max-width: none;
+    margin: 0;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+.update-notice strong { color: var(--accent-strong); }
+.update-notice p {
+    margin: 0.3rem 0 0;
+    color: var(--text-soft);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+.update-notice p.update-notice-error { color: var(--error); }
+/* Trois boutons ne tiennent pas de front dans une colonne de 15 rem :
+   l'action principale prend la largeur, les deux autres se partagent la
+   ligne suivante. */
+.update-notice-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+}
+
+/* ============ HEADER type audit-depot ============ */
+#app-header {
+    padding: 0.9rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+#app-header .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: inherit;
+}
+#app-header a.brand:hover { text-decoration: none; color: inherit; }
+#app-header .brand-logo {
+    width: 80px;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+#app-header .brand-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+#app-header .brand-badge {
+    display: inline-block;
+    background: var(--muted);
+    color: white;
+    padding: 0.05rem 0.4rem;
+    border-radius: 2px;
+    font-size: 0.65rem;
+    text-transform: lowercase;
+    letter-spacing: 0;
+    font-weight: 500;
+}
+.rail-versions {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.67rem;
+    /* La colonne est un flex vertical aligne a gauche : sans `align-self`,
+       l'element se replie sur son texte et `text-align` n'a rien a centrer. */
+    align-self: stretch;
+    text-align: center;
+}
+
+/* La fleche qui accompagne le numero : elle dit que le numero est un bouton,
+   ce qu'un texte gris ne dit pas. `spin`, deja defini plus haut, la fait
+   tourner le temps de la verification. */
+.rail-versions-refresh {
+    margin-left: .3rem;
+    font-size: .62rem;
+    opacity: .7;
+}
+.rail-versions:hover .rail-versions-refresh,
+.rail-versions:focus-visible .rail-versions-refresh {
+    opacity: 1;
+    color: var(--accent);
+}
+/* L'etat de la verification prend sa propre ligne, sous le numero et centree
+   comme lui. Vide, elle ne reserve aucune place — le rail ne bouge donc pas
+   au repos. */
+.rail-versions-etat {
+    display: block;
+    margin-top: .15rem;
+}
+.rail-versions-etat:empty { display: none; }
+
+/* Nav secondaire type audit-depot */
+#app-header nav {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+#app-header nav a,
+#app-header nav button {
+    color: var(--text-soft);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.35rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+#app-header nav a:hover,
+#app-header nav button:hover { color: var(--text); }
+
+/* Token dropdown dans le header */
+#app-header .token-zone {
+    margin-left: auto;
+    position: relative;
+    max-width: 640px;
+    flex: 1 1 300px;
+}
+details.token-details {
+    background: transparent;
+    border: none;
+}
+details.token-details > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel-alt);
+    font-size: 0.82rem;
+}
+details.token-details > summary::-webkit-details-marker { display: none; }
+details.token-details > summary::after {
+    content: "\25BE";
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-left: 0.4rem;
+}
+details.token-details[open] > summary { border-color: var(--accent-strong); }
+details.token-details[open] > summary::after { transform: rotate(180deg); }
+.token-form {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 20;
+    min-width: 380px;
+    max-width: min(560px, 95vw);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+}
+.token-row { display: flex; flex-direction: column; gap: 0.3rem; }
+.token-row label {
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+.token-row input {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.55rem 0.7rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+}
+.token-row input:focus { outline: none; border-color: var(--accent); }
+.token-row .hint {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-family: var(--font-sans);
+    line-height: 1.4;
+}
+.token-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+
+/* ============ BREADCRUMB ============ */
+.breadcrumb {
+    max-width: 1280px;
+    margin: 1.2rem auto 0.3rem;
+    padding: 0 1.5rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.breadcrumb::before {
+    content: "#";
+    color: var(--accent);
+    font-weight: 700;
+}
+.breadcrumb a { color: var(--muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--text); text-decoration: underline; }
+.breadcrumb span { color: var(--muted); }
+
+/* ============ LAYOUT GENERAL : deux colonnes ============
+   Le logo occupe une colonne etroite a gauche, le contenu prend tout le
+   reste. Double gain : la barre de marque ne pousse plus le contenu vers le
+   bas (tout remonte d'autant), et la colonne des etapes n'est plus bornee a
+   1280 px — les tableaux larges, schema en tete, respirent enfin.
+
+   Aucun changement de balisage : chaque page a deja `header#app-header` et
+   `main#app-main` pour seuls enfants visibles de `body` (les `<script>` sont
+   en display:none et ne creent donc pas de cellule). Le viewer, qui n'a ni
+   `home` ni `subpage` sur son body, garde sa mise en page plein ecran. */
+body.home,
+body.subpage {
+    display: grid;
+    /* 17rem, et non 15 : le libelle du bloc « forge », 38 caracteres
+       en chasse fixe a .57rem, demande 232 px et n'en avait que 211.
+       Il passait a la ligne, en cassant « NUMERIQUES ». La colonne
+       ne s'elargit qu'au-dela de 1250 px, ou la page se replie de
+       toute facon sur une seule colonne. */
+    grid-template-columns: var(--rail, 17rem) minmax(0, 1fr);
+    align-items: start;
+}
+body.home > #app-header,
+body.subpage > #app-header {
+    grid-column: 1;
+    /* Dans une colonne etroite, la marque s'empile au lieu de s'etaler. */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 1.2rem 0.9rem;
+}
+body.home > #app-main,
+body.subpage > #app-main {
+    grid-column: 2;
+}
+/* La borne de 1280 px servait a centrer le contenu dans une page pleine
+   largeur. La colonne s'en charge desormais : on la libere. L'accueil, lui,
+   garde sa largeur de lecture, ses deux cartes n'ont rien a y gagner.
+
+   `margin-left` doit repasser a zero : une marge auto desactive l'etirement
+   de l'element dans sa cellule, qui se replie alors sur sa largeur naturelle
+   pendant que la marge avale le reste. Invisible tant que la fenetre est
+   etroite, flagrant au-dela de 1600 px. */
+body.subpage > #app-main {
+    max-width: none;
+    margin: 0.4rem 1rem 2rem 0;
+}
+
+/* Sous cette largeur, la colonne de gauche prendrait sur le contenu :
+   on repasse a une seule colonne, marque au-dessus. */
+@media (max-width: 1250px) {
+    body.home,
+    body.subpage {
+        display: block;
+    }
+    body.home > #app-header,
+    body.subpage > #app-header {
+        flex-direction: row;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 0.9rem 1.5rem;
+    }
+    body.subpage > #app-main {
+        max-width: 1280px;
+        margin: 0.4rem auto 2rem;
+    }
+}
+
+/* ============ MAIN ============ */
+#app-main {
+    max-width: 1280px;
+    margin: 0.4rem auto 2rem;
+    padding: 0 1.5rem;
+}
+.page-title {
+    margin: 0.4rem 0 1.5rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+/* Le retour tient sur la ligne du titre : c'est le meme geste, revenir d'ou
+   l'on vient, et il ne merite pas une ligne a lui seul au-dessus. */
+.page-head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin: 0.4rem 0 1.5rem;
+}
+.page-head .page-title { margin: 0; }
+.page-head .btn-back { flex: 0 0 auto; text-decoration: none; }
+.muted { color: var(--muted); }
+.small { font-size: 0.78rem; }
+.mono { font-family: var(--font-mono); }
+.right { text-align: right; }
+
+/* ============ RAG-BLOCK = carte type audit-depot ============ */
+.rag-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.2rem;
+}
+.rag-block h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--border);
+    letter-spacing: 0.02em;
+}
+.rag-block h2 + p { margin-top: 0; color: var(--muted); font-family: var(--font-sans); font-size: 0.88rem; }
+.rag-block.success-block {
+    background: var(--success-soft);
+    border-color: var(--success);
+}
+.rag-block.success-block strong { color: var(--success); }
+.rag-block.warning-block {
+    background: var(--error-soft);
+    border-color: var(--error);
+}
+.rag-block.warning-block strong { color: var(--error); }
+
+.block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.7rem;
+}
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+/* ============ BADGES ============ */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.55rem;
+    background: var(--panel-alt);
+    color: var(--muted-strong);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+.badge.ready {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent-strong);
+}
+.badge.error {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+}
+.badge.warn {
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
+}
+
+/* ============ SELECTED COLLECTION BANNER ============ */
+.selected-collection-banner {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+}
+.banner-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+}
+.banner-head h3 {
+    margin: 0.4rem 0 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.banner-stats { display: flex; gap: 1.5rem; }
+.banner-stats > div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+.banner-stats span {
+    color: var(--muted);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+.banner-stats strong {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.banner-stats strong.quota-warn { color: var(--warning); }
+.banner-stats strong.quota-full { color: var(--error); }
+
+.quota-warning {
+    background: var(--error-soft);
+    border: 1px solid var(--error);
+    border-radius: 4px;
+    padding: 0.6rem 0.85rem;
+    margin-top: 0.6rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--error);
+}
+.quota-warning code {
+    background: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 3px;
+    padding: 0.05rem 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text);
+}
+
+.banner-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem 1.5rem;
+    margin: 0.9rem 0 0.7rem;
+    padding: 0;
+}
+.banner-meta > div { margin: 0; }
+.banner-meta dt {
+    color: var(--muted);
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+}
+.banner-meta dd {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    word-break: break-word;
+    color: var(--text);
+}
+.banner-meta dd.mono { font-family: var(--font-mono); font-size: 0.78rem; }
+
+.banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ============ BUTTONS ============ */
+button {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 0.4rem 0.85rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+button:hover:not(:disabled) {
+    background: var(--panel-alt);
+    border-color: var(--muted);
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary {
+    background: #0f0f10;
+    border-color: #0f0f10;
+    color: white;
+    font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+    background: #26272a;
+    border-color: #26272a;
+}
+button.danger {
+    background: var(--panel);
+    border-color: var(--error);
+    color: var(--error);
+}
+button.danger:hover:not(:disabled) { background: var(--error-soft); }
+
+/* ============ TABLES ============ */
+.table-wrap { overflow-x: auto; }
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+.data-table th, .data-table td {
+    padding: 0.65rem 0.9rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    vertical-align: middle;
+}
+.data-table th {
+    background: var(--panel-alt);
+    color: var(--muted-strong);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+    border-bottom: 1px solid var(--border-strong);
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: var(--panel-alt); }
+.data-table tr.row-selected { background: var(--accent-soft); }
+.data-table tr.row-selected:hover { background: var(--accent-soft); }
+.data-table td.mono {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+.row-actions button { padding: 0.28rem 0.65rem; font-size: 0.72rem; }
+
+/* ============ DETAILS (collapse) ============ */
+details.section-details {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 0.75rem;
+}
+details.section-details > summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    color: var(--text);
+    font-weight: 700;
+    list-style: none;
+}
+details.section-details > summary::-webkit-details-marker { display: none; }
+details.section-details > summary::before {
+    content: "\25B8";
+    margin-right: 0.55rem;
+    color: var(--muted);
+    display: inline-block;
+    transition: transform 0.15s;
+}
+details.section-details[open] > summary::before { transform: rotate(90deg); }
+details.section-details[open] > summary { border-bottom: 1px solid var(--border); }
+details.section-details > *:not(summary) { padding: 0.9rem 1rem; }
+
+/* ============ MODALS ============ */
+dialog.app-modal {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 0;
+    max-width: 560px;
+    width: calc(100vw - 2rem);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+dialog.app-modal::backdrop { background: rgba(15,17,21,0.35); }
+dialog.app-modal .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+dialog.app-modal header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-alt);
+    border-radius: 6px 6px 0 0;
+}
+dialog.app-modal header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+dialog.app-modal .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.4rem;
+    padding: 0 0.3rem;
+    cursor: pointer;
+}
+dialog.app-modal label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0 1.1rem;
+    color: var(--muted-strong);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+dialog.app-modal label code {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.72rem;
+    color: var(--text);
+    text-transform: none;
+    font-weight: 500;
+}
+dialog.app-modal input[type="text"],
+dialog.app-modal input[type="password"],
+dialog.app-modal select {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.55rem 0.7rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: normal;
+}
+dialog.app-modal input:focus, dialog.app-modal select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+dialog.app-modal label.inline-checkbox {
+    flex-direction: row;
+    align-items: center;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.85rem;
+    color: var(--text);
+    gap: 0.5rem;
+    font-weight: normal;
+}
+dialog.app-modal label.inline-checkbox input { width: auto; }
+dialog.app-modal .required { color: var(--error); }
+dialog.app-modal .modal-warn {
+    margin: 0 1.1rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--error-soft);
+    border: 1px solid var(--error);
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    color: var(--text);
+}
+dialog.app-modal footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.9rem 1.1rem;
+    border-top: 1px solid var(--border);
+    background: var(--panel-alt);
+    border-radius: 0 0 6px 6px;
+    margin-top: 0.3rem;
+}
+
+/* ============ LOADING OVERLAY ============ */
+.app-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+.loading-card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 1.2rem 1.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.spinner {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ Scrollbars ============ */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ============ Formulaire pipeline ============ */
+.stacked-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    max-width: 720px;
+}
+.stacked-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.stacked-form label > span:first-child {
+    color: var(--muted-strong);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+.stacked-form input,
+.stacked-form select {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.55rem 0.75rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+}
+.stacked-form input:focus,
+.stacked-form select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.stacked-form .hint {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-family: var(--font-sans);
+    line-height: 1.4;
+}
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+}
+.actions-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+}
+
+/* ============ Conseils / tips-list ============ */
+.tips-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.3rem;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+.tips-list li { margin-bottom: 0.35rem; }
+.tips-list li code {
+    background: var(--panel-alt, #f0f2f5);
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.82rem;
+}
+
+/* ============ ACCUEIL : conteneur centre et sans indent ============ */
+body.home #app-main {
+    max-width: 960px;
+}
+
+/* Boite explicative cle : fond legerement plus fonce que la page,
+   pas de bordure coloree, prend toute la largeur du conteneur. */
+.home-key-box {
+    margin: 0.8rem 0 2rem;
+    padding: 1.1rem 1.4rem 1.2rem;
+    background: #ebeef1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-soft);
+}
+.home-key-box h2 {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+.home-key-box p { margin: 0 0 0.55rem; }
+.home-key-box code {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.02rem 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text);
+}
+.home-key-actions {
+    margin-top: 0rem;
+    padding-top: 0rem;
+    display: flex;
+    justify-content: center;
+}
+.home-key-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+}
+/* Case cochee : on masque tout ce qui est au-dessus, seule la case reste. */
+.home-key-box.collapsed > h2,
+.home-key-box.collapsed > p,
+.home-key-box.collapsed > .home-key-actions {
+    display: none;
+}
+.home-key-box.collapsed {
+    padding: 0.7rem 1.2rem;
+}
+.home-key-box.collapsed .home-key-check {
+    margin-top: 0;
+}
+.home-key-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--info);
+    flex-shrink: 0;
+}
+.home-choose {
+    margin-top: 0.6rem;
+    text-align: center;
+}
+
+.home-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin: 0.6rem 0 2rem;
+}
+.home-btn.disabled,
+.home-btn[aria-disabled="true"] {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(0.6);
+}
+.home-btn {
+    display: block;
+    padding: 1.4rem 1.6rem;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.home-btn:hover {
+    border-color: var(--info);
+    color: var(--text);
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+.home-btn h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--info);
+    font-weight: 700;
+}
+.home-btn p {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--muted-strong);
+}
+
+/* ============ SOUS-PAGES : pas d'indent 46px (pas d'icone step) ============ */
+body.subpage .step-note,
+body.subpage .action-tabs,
+body.subpage .actions-row,
+body.subpage .home-nav {
+    margin-left: 0;
+}
+
+.step-btn {
+    font-size: 0.82rem;
+    padding: 0 1rem;
+    height: 32px;
+    min-height: 32px;
+    line-height: 1;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+}
+.step-note {
+    margin: -0.4rem 0 1rem 46px;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    max-width: 720px;
+}
+
+/* ============ GRILLE 5 CARTES ACTIONS ============ */
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 0 0 2rem 46px;
+    align-items: stretch;
+}
+
+/* ============ ONGLETS "TAB" 5 actions ============ */
+.action-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 1rem 46px;
+}
+.action-tab {
+    height: 32px;
+    min-height: 32px;
+    line-height: 1;
+    padding: 0 0.9rem;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    color: var(--text-soft);
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.action-tab:hover:not(.active) {
+    background: var(--panel-alt);
+    color: var(--text);
+    border-color: var(--muted);
+}
+.action-tab.active {
+    background: var(--info);
+    border-color: var(--info);
+    color: white;
+}
+.action-tab.danger.active {
+    background: var(--error);
+    border-color: var(--error);
+}
+.action-tab.danger:not(.active) { color: var(--error); border-color: var(--error); }
+.action-tab.danger:not(.active):hover { background: var(--error-soft); }
+
+/* ============ PANNEAU (carte selectionnee ~2x plus large) ============ */
+.action-panel {
+    margin: 0;
+}
+.action-panel .action-card {
+    max-width: 520px;
+}
+
+/* ============ 2 COLONNES : panneau (gauche) + conseils (droite) ============ */
+.actions-row {
+    display: grid;
+    grid-template-columns: minmax(0, 520px) 1fr;
+    gap: 2rem;
+    margin: 0 0 2rem 46px;
+    align-items: start;
+}
+.actions-row .tips-section { margin: 0; }
+.action-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.1rem 1.2rem 1rem;
+    gap: 0.7rem;
+    min-height: 100%;
+    position: relative;
+}
+/* Colonne empilee : 2 cartes qui se partagent la hauteur totale */
+.action-card-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 100%;
+}
+.action-card-stack .action-card {
+    flex: 1 1 0;
+    min-height: 0;
+}
+.action-card h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.action-card.danger h3 { color: var(--error); }
+.action-card.danger { border-color: var(--error); }
+.action-card .action-desc {
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+.action-card .action-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    flex: 1 1 auto;
+}
+.action-card .action-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+/* Case a cocher en ligne (checkbox + libelle sur une seule ligne) :
+   ecrase le layout colonne des labels de champ. Le libelle reprend la
+   taille de texte du reste du form (pas le petit uppercase des labels
+   de champ). */
+.action-card .action-fields label.checkbox-inline {
+    flex-direction: row;
+    align-items: center;
+    gap: .5rem;
+}
+.action-card .action-fields label.checkbox-inline > span:first-child {
+    color: var(--text);
+    font-size: 0.85rem;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: normal;
+    font-family: var(--font-mono);
+}
+.action-card .action-fields label.checkbox-inline input { margin: 0; }
+.action-card .action-fields label > span:first-child {
+    color: var(--muted-strong);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+.action-card .action-fields input,
+.action-card .action-fields select {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 0.65rem;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+.action-card .action-fields input:focus,
+.action-card .action-fields select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.action-card .action-fields .hint {
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+.action-card .required { color: var(--error); }
+
+/* Liste d'etapes numerotees (petits ronds noirs) */
+.steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.9rem 0 0;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--text);
+}
+.steps-list li {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    align-items: start;
+    column-gap: 0.55rem;
+    margin-bottom: 0.5rem;
+}
+.step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0f0f10;
+    color: white;
+    /* Police sans-serif : les chiffres sont mieux centres visuellement dans le rond */
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    flex-shrink: 0;
+    /* Centre vertical du badge aligne avec centre de la 1ere ligne de texte
+       (font-size 0.82rem, line-height 1.45 -> line-box ~19px, centre ~9.5px ;
+       badge 22px, centre 11px -> on remonte le badge de 1.5px). */
+    margin-top: -1px;
+}
+.report-banner {
+    margin: 0.4rem 0 0;
+    padding: 0;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.3;
+    letter-spacing: 0.15em;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Bouton envoyer avec masque SVG : tous en bleu, meme hauteur.
+   Variante rouge pour la carte danger (Supprimer). */
+.action-card .send-btn {
+    align-self: center;
+    /* margin-top: auto pousse le bouton en bas du flex, garantissant
+       la meme distance (padding-bottom de la carte) sous le bouton. */
+    margin-top: auto;
+    margin-bottom: 0;
+    min-width: 120px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 1.2rem;
+    line-height: 1;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #111827;
+    border: 1px solid #111827;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.action-card .send-btn:hover:not(:disabled) {
+    background: #000000;
+    border-color: #000000;
+}
+.action-card .send-btn:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+}
+.action-card .send-btn.is-loading,
+.action-card .send-btn.is-loading:disabled {
+    background: #111827;
+    border-color: #111827;
+    color: white;
+    cursor: wait;
+}
+.action-card .send-btn.is-loading i { animation-duration: 1s; }
+.action-card.danger .send-btn {
+    background: var(--error);
+    border-color: var(--error);
+}
+.action-card.danger .send-btn:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+.action-card .send-btn i {
+    font-size: 1rem;
+}
+.action-card .send-btn.pending i,
+.action-card .send-btn:disabled i { opacity: .7; }
+
+/* ============ ENCADRE CONSEIL ============ */
+/* Repris d'EduMD (`.guide-encadre`) : fond jaune et icone, sans filet. Le
+   jaune le distingue du bleu de l'interface, qui sert deja aux titres et aux
+   liens ; l'absence de bordure le pose comme une respiration dans la lecture
+   plutot que comme un bloc a part. */
+.guide-encadre {
+    display: flex;
+    gap: 0.7rem;
+    margin: 0 0 1.1rem;
+    padding: 0.9rem 1.1rem;
+    border: 0;
+    border-radius: 6px;
+    background: #faeea0;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    text-align: left;
+}
+.guide-encadre i {
+    flex: 0 0 auto;
+    margin-top: 0.2rem;
+    color: #eecb49;
+}
+.guide-encadre > div { min-width: 0; }
+.guide-encadre p { margin: 0; }
+/* Le detail se lit dans la boite, serre contre la phrase qu'il precise. */
+.guide-encadre .guide-points {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+}
+.guide-encadre .guide-points li:last-child { margin-bottom: 0; }
+
+/* `.tips-section > p` impose sa couleur et sa taille a tout paragraphe
+   d'etape : il faut le meme poids de selecteur pour passer devant. */
+.tips-section > p.guide-encadre {
+    color: var(--text);
+    font-size: 0.88rem;
+}
+
+/* ============ CONSEILS (hors carte) ============ */
+.tips-section {
+    margin: 2rem 0 1.5rem;
+    padding: 0 0.2rem;
+}
+
+/* Page rag-theme : boites blanches qui ressortent sur le fond gris clair */
+body[data-page="rag-theme"] .tips-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    background: #ffffff;
+    margin: 1rem 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+/* Tout ce qui suit le titre d'une etape s'aligne sur le titre, pas sur la
+   pastille : le numero deborde a gauche et le contenu se lit comme une seule
+   colonne sous son intitule. Le retrait vaut la pastille (1.6rem), sa marge
+   (.5rem) et l'espace typographique qui la separe du titre. */
+body[data-page="rag-theme"] .tips-section > *:not(h2) {
+    margin-left: 2.74rem;
+}
+body[data-page="rag-theme"] .tips-section .tips-section {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    margin-top: 0;
+    box-shadow: none;
+    outline: 0;
+}
+body[data-page="rag-theme"] .tips-section h3 {
+    margin: 0 0 .4rem;
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted-strong);
+}
+/* Aplanir les cartes internes pour eviter la double-boite */
+body[data-page="rag-theme"] .tips-section .action-card {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    max-width: none;
+}
+
+/* Cercles numerotes (h2 d'etape et pipeline overview) : fond noir, chiffre blanc */
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: #111827;
+    border: 1px solid #111827;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: .8rem;
+    margin-right: .5rem;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Entete de section avec actions a droite */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: .6rem;
+}
+.section-header h2 { margin: 0; }
+/* L'ecart icone/texte vient du `gap` de .btn : une marge s'y ajouterait. */
+.section-header .btn i { margin-right: 0; }
+.run-progress {
+    display: inline-flex;
+    align-items: center;
+    padding: .05rem .5rem;
+    border-radius: 3px;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    font-family: var(--font-mono, monospace);
+    flex: 0 0 auto;
+}
+.run-progress.complete {
+    background: rgba(22, 163, 74, 0.12);
+    color: var(--success, #16a34a);
+}
+.run-progress.partial {
+    background: rgba(234, 179, 8, 0.18);
+    color: #a16207;
+}
+/* ============ Barre de progression pour jobs longue duree ============ */
+.progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    padding: .5rem 0;
+}
+.progress-track {
+    height: .55rem;
+    background: var(--panel-alt, #f3f4f6);
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border, #e5e7eb);
+}
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary, #0d6efd), #3b82f6);
+    transition: width 0.3s ease;
+    border-radius: inherit;
+}
+.progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    font-size: .8rem;
+}
+.progress-label { color: var(--muted-strong, #4b5563); }
+.progress-count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.progress-current {
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    color: var(--muted, #6b7280);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.is-done .progress-fill { background: var(--success, #16a34a); }
+.is-done .progress-label { color: var(--success, #16a34a); font-weight: 600; }
+.is-error .progress-fill { background: var(--error, #dc2626); }
+.is-error .progress-label { color: var(--error, #dc2626); font-weight: 600; }
+
+.convert-progress-host {
+    margin-top: .6rem;
+    padding: .2rem .8rem;
+    border-top: 1px dashed var(--border, #e5e7eb);
+}
+.convert-progress-host:empty { display: none; }
+
+.convert-hint {
+    background: rgba(13, 110, 253, 0.06);
+    border-left: 3px solid var(--primary, #0d6efd);
+    padding: .5rem .8rem;
+    border-radius: 3px;
+    margin: .5rem 0 .8rem;
+}
+.convert-test-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+}
+.run-view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .65rem;
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    text-decoration: none;
+    color: var(--accent);
+    border: 1px solid var(--accent-soft);
+    border-radius: 3px;
+    background: transparent;
+    flex: 0 0 auto;
+    font-family: var(--font-sans);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.run-view-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    border-color: var(--accent);
+}
+.run-view-btn.disabled {
+    color: var(--muted);
+    border-color: transparent;
+    cursor: default;
+    padding-right: .3rem;
+}
+.run-view-btn.disabled:hover { background: transparent; }
+.run-view-btn i { font-size: .7rem; }
+.run-actions .run-view-btn { cursor: pointer; font-family: var(--font-sans); }
+
+/* Modale d'info d'une etape (reutilise .app-modal) */
+dialog.step-info-modal {
+    max-width: 520px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+}
+dialog.step-info-modal::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog.step-info-modal header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .8rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-alt);
+    border-radius: 8px 8px 0 0;
+}
+dialog.step-info-modal header h3 {
+    margin: 0;
+    font-size: .9rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text);
+}
+dialog.step-info-modal header button {
+    background: transparent;
+    border: 0;
+    font-size: 1rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: .3rem;
+    line-height: 1;
+    border-radius: 4px;
+}
+dialog.step-info-modal header button:hover { background: var(--panel); color: var(--text); }
+dialog.step-info-modal .modal-body {
+    padding: 1rem 1.2rem 1.2rem;
+}
+
+/* ============ Modale details d'un run de segmentation ============ */
+dialog.segment-details-modal {
+    max-width: 780px;
+    width: 90vw;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+}
+dialog.segment-details-modal::backdrop { background: rgba(0, 0, 0, 0.35); }
+dialog.segment-details-modal header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .8rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-alt);
+    border-radius: 8px 8px 0 0;
+}
+dialog.segment-details-modal header h3 {
+    margin: 0;
+    font-size: .9rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text);
+    font-family: var(--font-mono);
+}
+dialog.segment-details-modal header button {
+    background: transparent; border: 0; font-size: 1rem;
+    color: var(--muted); cursor: pointer; padding: .3rem;
+    line-height: 1; border-radius: 4px;
+}
+dialog.segment-details-modal header button:hover { background: var(--panel); color: var(--text); }
+dialog.segment-details-modal .modal-body {
+    padding: 1rem 1.2rem 1.2rem;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.segment-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: .6rem .8rem;
+    margin: 0 0 1rem;
+    padding: .8rem;
+    background: var(--bg, #f6f7f9);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+.segment-stats-grid > div { display: flex; flex-direction: column; gap: .1rem; }
+.segment-stats-grid dt {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted, #6b7280);
+    font-weight: 600;
+}
+.segment-stats-grid dd {
+    margin: 0;
+    font-size: .95rem;
+    color: var(--text);
+}
+.segment-stats-grid dd.run-stat-err { color: var(--error, #dc2626); font-weight: 700; }
+.segment-stats-grid dd strong { font-size: 1.1rem; }
+.segment-docs-table tr.is-excluded { background: rgba(220, 38, 38, 0.06); }
+.segment-docs-table tr.is-excluded .segment-doc-flag { color: var(--error, #dc2626); }
+
+/* ----- Etape 4 : une ligne par document a segmenter ----- */
+
+.seg-stale { color: #b45309; font-weight: 600; font-style: normal; }
+
+/* Etat de segmentation d'une ligne : des ciseaux, pas un rond de validation.
+   La distinction compte, le rond vert de la page conversions veut dire « j'ai
+   relu ce document », ce qui n'est pas la meme promesse. La pastille en
+   surimpression porte l'etat : coche quand la decoupe est a jour, point
+   d'exclamation quand elle est a refaire. Meme composition que le rond de
+   validation en lot, pour que les deux se lisent pareil.
+   Le disque est fait en CSS et non avec une icone `fa-circle-*` : Font Awesome
+   n'a pas de rond plein contenant des ciseaux. `background: currentColor` fait
+   suivre le fond a la couleur d'etat, les ciseaux sont detoures en blanc. */
+.seg-dot {
+    flex: 0 0 auto;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    background: currentColor;
+    line-height: 1;
+}
+.seg-dot .fa-scissors {
+    color: #ffffff;
+    font-size: .6rem;
+}
+/* Pastille d'etat : second disque plein, glyphe detoure en blanc comme le
+   grand. Le lisere blanc le detache du disque principal, sur lequel il mord.
+   Le fond est pose par etat et non avec `currentColor` : ici la couleur sert
+   au glyphe, elle ne peut pas servir aussi au fond. */
+.seg-dot .seg-dot-mark {
+    position: absolute;
+    right: -.3rem;
+    bottom: -.16rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: .66rem;
+    height: .66rem;
+    border-radius: 50%;
+    font-size: .38rem;
+    color: #ffffff;
+    box-shadow: 0 0 0 1.5px #ffffff;
+}
+/* Palette propre a la segmentation, volontairement distincte du vert de la
+   validation : les deux pages ne disent pas la meme chose, elles ne doivent
+   pas partager la meme couleur. Le sarcelle se lit comme « traite » sans
+   revendiquer le « relu par un humain » du vert, et ne se confond pas non
+   plus avec le bleu des boutons. */
+.seg-dot.on { color: #0d9488; }
+.seg-dot.on .seg-dot-mark { background: #0d9488; }
+.seg-dot.stale { color: #d97706; }
+.seg-dot.stale .seg-dot-mark { background: #d97706; }
+.seg-dot.off { color: #94a3b8; }
+.seg-dot.none { color: #dfe3e8; }
+
+/* Dialogue "Decoupe" d'un document (apercu + reglage). */
+/* Reglage de la decoupe : la taille cible commande (elle decide si un
+   tableau reste entier), le recouvrement est devenu secondaire depuis la
+   decoupe par blocs. La mise en page suit cette hierarchie. */
+.doc-segment-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .3rem;
+    margin: .6rem 0 .8rem;
+    padding-bottom: .8rem;
+    border-bottom: 1px dashed var(--border, #e5e7eb);
+    font-size: .82rem;
+}
+.doc-segment-form label { display: inline-flex; align-items: center; gap: .35rem; }
+.doc-segment-form .doc-seg-main { font-size: .95rem; font-weight: 600; }
+.doc-seg-label { min-width: 8rem; }
+.doc-seg-hint { margin: 0 0 .2rem; max-width: 46rem; }
+.doc-seg-advanced { margin: .2rem 0 .4rem; }
+.doc-seg-advanced summary {
+    cursor: pointer;
+    color: var(--muted-strong, #4b5563);
+    font-size: .8rem;
+}
+.doc-seg-advanced > label { margin: .4rem 0 .2rem; }
+.doc-seg-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .3rem; }
+/* Etat des tableaux dans les statistiques d'apercu. */
+.segment-stats-grid .seg-stat-ok dd { color: var(--success, #198754); }
+.segment-stats-grid .seg-stat-warn dd { color: #b45309; }
+.doc-segment-form input[type="number"] {
+    width: 5.5rem;
+    padding: .3rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .8rem;
+    font-family: inherit;
+}
+.doc-seg-warn {
+    margin: 0 0 .8rem;
+    padding: .5rem .8rem;
+    border-radius: 4px;
+    background: rgba(217, 119, 6, 0.1);
+    color: #b45309;
+    font-size: .82rem;
+}
+.doc-seg-warn i { margin-right: .35rem; }
+.doc-segment-btn.is-tuned { color: var(--primary, #0d6efd); }
+
+.segment-preview-title {
+    margin: .6rem 0 .4rem;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted-strong, #4b5563);
+    font-weight: 700;
+}
+.segment-preview-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+.segment-preview-item {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .55rem .7rem;
+}
+.segment-preview-head {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    font-family: var(--font-sans);
+    font-size: .78rem;
+    flex-wrap: wrap;
+    margin-bottom: .35rem;
+}
+.segment-preview-source { color: var(--text); font-weight: 600; }
+.segment-preview-source i { color: var(--accent); margin-right: .25rem; }
+.segment-preview-headers {
+    color: var(--muted, #6b7280);
+    font-family: var(--font-mono);
+    font-size: .75rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.segment-preview-len { margin-left: auto; flex: 0 0 auto; }
+.segment-preview-body {
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+    background: var(--bg, #f6f7f9);
+    padding: .4rem .55rem;
+    border-radius: 4px;
+    border-left: 2px solid var(--border);
+}
+.segment-preview-id { margin-top: .3rem; font-size: .7rem; }
+body[data-page="rag-theme"] .tips-section h2 i {
+    margin-right: .4rem;
+    color: var(--accent);
+}
+.tips-section h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent-strong, #67a20f);
+}
+.tips-section > p,
+.tips-section > ol,
+.tips-section > ul {
+    line-height: 1.55;
+    color: var(--text-soft);
+    font-size: 0.88rem;
+}
+/* Phrase d'introduction juste sous le titre d'une etape. */
+.tips-section > ol,
+.tips-section > ul { padding-left: 1.4rem; }
+
+/* ============ MODAL body ============ */
+dialog.app-modal .modal-body {
+    padding: 1rem 1.2rem 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text);
+}
+dialog.app-modal .modal-body p { margin: 0 0 0.7rem; }
+dialog.app-modal .modal-body ol { padding-left: 1.3rem; margin: 0.4rem 0 0.8rem; }
+dialog.app-modal .modal-body code {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.05rem 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+}
+
+/* ============ Responsive ============ */
+@media (max-width: 720px) {
+    #app-header { flex-direction: column; align-items: flex-start; }
+    .banner-stats { width: 100%; justify-content: space-between; }
+    .actions-grid { grid-template-columns: 1fr; margin-left: 0; }
+    .actions-row { grid-template-columns: 1fr; margin-left: 0; gap: 1.5rem; }
+    .action-tabs { margin-left: 0; }
+    .step-note { margin-left: 0; }
+}
+
+/* ============ Spinner (MD-RAG local) ============ */
+.spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -0.15em;
+    margin-right: 0.4em;
+}
+/* Dans un bouton, c'est le `gap` qui espace : la marge ferait double.
+   Les couleurs suivent le fond : blanc sur un bouton plein, accent sur un
+   bouton clair. */
+.btn > .spinner {
+    margin-right: 0;
+    border-color: rgba(255, 255, 255, .35);
+    border-top-color: #ffffff;
+}
+.btn.ghost > .spinner,
+.btn.danger > .spinner {
+    border-color: var(--border, #e5e7eb);
+    border-top-color: var(--accent, #0d6efd);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ Collections page (MD-RAG local) ============ */
+.create-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.5rem 0 1rem;
+}
+.create-bar .btn { flex-shrink: 0; }
+.create-bar .create-form {
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.9rem 1.1rem;
+    margin-top: 0.6rem;
+    width: 100%;
+}
+.create-bar.expanded .create-form { display: block; }
+.create-bar .create-form .fields {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto auto;
+    gap: 0.6rem;
+    align-items: end;
+}
+.create-bar .create-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+.create-bar .create-form input,
+.create-bar .create-form select {
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--panel-alt);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+.collections-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+.collections-table th,
+.collections-table td {
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.collections-table th {
+    background: var(--panel-alt);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    border-bottom: 1px solid #c0c7d0;
+}
+.collections-table tbody tr:last-child td { border-bottom: none; }
+.collections-table tbody tr:hover { background: var(--panel-alt); }
+.collections-table .col-id { max-width: 12ch; overflow-wrap: anywhere; }
+.collections-table .col-num { text-align: right; }
+.collections-table .col-actions { white-space: nowrap; }
+.collections-table .pct {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(124,181,24,.12);
+    color: var(--accent);
+}
+.collections-table .pct.warn { background: #fef9c3; color: #a16207; }
+.collections-table .pct.full { background: #fee2e2; color: #dc2626; }
+.btn {
+    /* Flex et non inline-block : c'est ce qui centre le libelle sur la
+       hauteur du bouton, y compris quand celle-ci est imposee (les boutons
+       de ligne ont une hauteur fixe, et leur texte se posait 4px trop haut).
+       L'icone et le texte deviennent deux elements de flex : l'espace ecrit
+       entre eux dans le HTML est ignore, d'ou le `gap`. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    /* Padding volontairement asymetrique. Avec `align-items: center`, le
+       libelle est centre sur sa BOITE DE GLYPHES, qui reserve la place des
+       jambages (p, g, j) meme quand le mot n'en a pas : « Installer » se
+       posait donc visiblement trop haut dans un bouton pourtant symetrique.
+       Les 0.15rem d'ecart rattrapent cette reserve. Ne pas « corriger » en
+       remettant une valeur unique. */
+    padding: 0.6rem 0.7rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78rem;
+    /* Sans valeur explicite, un <button> prend le `normal` du navigateur et
+       un <a class="btn"> herite du 1.55 de la page : quatre pixels d'ecart
+       entre deux boutons cote a cote. */
+    line-height: 1.2;
+    text-decoration: none;
+}
+.btn:hover:not(:disabled) { background: #000000; border-color: #000000; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.ghost { background: var(--panel-alt); border-color: var(--border); color: var(--text); }
+.btn.ghost:hover:not(:disabled) { background: var(--panel); border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn.danger { background: transparent; color: var(--error); border-color: var(--error); }
+.btn.danger:hover:not(:disabled) { background: var(--error-soft); color: var(--error); }
+.row-actions { display: inline-flex; gap: 0.35rem; }
+
+/* Modal rename (dialog) */
+dialog.rename-modal {
+    max-width: 480px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0;
+    background: var(--panel);
+    color: var(--text);
+}
+dialog.rename-modal::backdrop { background: rgba(0,0,0,0.35); }
+dialog.rename-modal header {
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+dialog.rename-modal header h3 { margin: 0; font-size: 0.95rem; }
+dialog.rename-modal .modal-body { padding: 1rem 1.1rem; }
+dialog.rename-modal .modal-body label {
+    display: block;
+    margin-bottom: 0.7rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+dialog.rename-modal .modal-body input,
+dialog.rename-modal .modal-body select {
+    display: block;
+    width: 100%;
+    margin-top: 0.2rem;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--panel-alt);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    box-sizing: border-box;
+}
+dialog.rename-modal footer {
+    padding: 0.7rem 1.1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+}
+
+/* ============ Description icon + section sep ============ */
+.name-with-desc {
+    cursor: help;
+    border-bottom: 1px dotted var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.desc-icon {
+    color: var(--muted);
+    font-size: 0.8em;
+}
+.collections-table tr.section-sep td {
+    background: var(--panel-alt);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+}
+.collections-table tr.row-other td {
+    color: var(--muted);
+}
+
+/* ============ Reports list (RAG page) ============ */
+.reports-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+}
+.reports-list li {
+    border-bottom: 1px solid var(--border);
+}
+.reports-list li:last-child { border-bottom: none; }
+.reports-list a {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.5rem 0.2rem;
+    color: var(--text);
+    text-decoration: none;
+}
+.reports-list a:hover { background: var(--panel-alt); }
+.reports-list .report-ts { font-weight: 600; }
+.reports-list .report-name { word-break: break-all; }
+
+/* Reports list : 2 lignes (main / folder) */
+.reports-list a {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+}
+.reports-list .report-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+}
+.reports-list .report-engine {
+    color: var(--accent);
+    font-weight: 600;
+}
+.reports-list .report-folder {
+    font-size: 0.76rem;
+}
+
+/* Reports list : bouton supprimer aligné à droite */
+.reports-list .report-item {
+    display: flex;
+    align-items: stretch;
+    gap: 0.3rem;
+}
+.reports-list .report-link {
+    flex: 1;
+    min-width: 0;
+}
+.reports-list .report-delete {
+    flex-shrink: 0;
+    padding: 0.1rem 0.5rem;
+    font-size: 1rem;
+    line-height: 1;
+    align-self: center;
+    color: var(--muted);
+    border-color: transparent;
+    background: transparent;
+}
+.reports-list .report-delete:hover:not(:disabled) {
+    color: var(--error);
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+/* Liste des RAGs : cartes-lignes empilees (inspiration Cyberscol) */
+.rag-list {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    margin: .6rem 0 1rem;
+}
+.rag-row {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--border, #dde1e6);
+    border-radius: 8px;
+    background: var(--panel, #ffffff);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rag-row:hover {
+    border-color: #111827;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.rag-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.rag-row-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+.rag-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+    margin-top: .2rem;
+    font-size: 0.78rem;
+    color: var(--muted, #6b7280);
+}
+.rag-row-meta .rag-row-icon {
+    color: var(--muted, #6b7280);
+    margin-right: .1rem;
+    opacity: .7;
+    font-size: 0.7rem;
+}
+.rag-row-path {
+    font-family: var(--font-mono);
+    color: var(--muted-strong, #4b5563);
+}
+.rag-row-sep { opacity: .5; }
+.rag-row-steps {
+    display: flex;
+    gap: .3rem;
+    flex: 0 0 auto;
+}
+.rag-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: 1px solid var(--border, #dde1e6);
+    background: var(--panel-alt, #f9fafb);
+    color: var(--muted, #6b7280);
+}
+.rag-pill.done {
+    background: var(--success, #16a34a);
+    border-color: var(--success, #16a34a);
+    color: white;
+}
+.rag-row-open {
+    flex: 0 0 auto;
+    padding: .35rem .8rem;
+    background: #111827;
+    border: 1px solid #111827;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+.rag-row:hover .rag-row-open {
+    background: #000000;
+    border-color: #000000;
+}
+@media (max-width: 720px) {
+    .rag-row { flex-wrap: wrap; }
+    .rag-row-steps { order: 3; }
+    .rag-row-open { margin-left: auto; }
+}
+
+/* Meta d'une etape : "A quoi ca sert / Ce que ca produit / Quand la relancer" */
+.step-meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: .3rem 1rem;
+    margin: .5rem 0 1rem;
+    line-height: 1.45;
+}
+.step-meta dt {
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    font-size: .72rem;
+    letter-spacing: .06em;
+    padding-top: .2rem;
+}
+.step-meta dd {
+    margin: 0;
+    color: var(--muted, #6b7280);
+    font-size: .8rem;
+}
+@media (max-width: 640px) {
+    .step-meta { grid-template-columns: 1fr; gap: .2rem; }
+    .step-meta dt { padding-top: .5rem; }
+}
+
+/* Pipeline flow (vue d'ensemble simple sur la page liste des RAGs) */
+.pipeline-flow {
+    list-style: none;
+    padding: 0;
+    margin: .6rem 0 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+}
+.pipeline-flow li {
+    flex: 1 1 200px;
+    min-width: 180px;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .55rem .8rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 6px;
+    background: var(--panel, #ffffff);
+    font-size: .9rem;
+}
+.pipeline-flow .pipeline-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: #111827;
+    border: 1px solid #111827;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: .8rem;
+    flex: 0 0 auto;
+}
+
+/* Tracker de pipeline (style suivi de livraison, page rag.html) */
+.pipeline-tracker {
+    margin: 1rem 0 1.5rem;
+    padding: 0;
+}
+.pipeline-tracker-head {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+/* Enfant direct seulement : le titre de l'etape. Un <strong> a l'interieur
+   du paragraphe met un chiffre en avant, il ne doit pas passer a la ligne. */
+.pipeline-tracker-head > strong {
+    display: block;
+    color: var(--success, #16a34a);
+    font-size: .95rem;
+    margin-bottom: .2rem;
+}
+.pipeline-tracker-head p {
+    margin: 0;
+    color: var(--muted, #6b7280);
+    font-family: var(--font-sans);
+    font-size: .88rem;
+}
+
+/* Le suivi est centre dans la page : etale sur toute la largeur, il
+   eloigne la premiere etape de la derniere au point qu'on ne les lit plus
+   comme une suite. La largeur est donc bornee, et bornee selon le nombre
+   d'etapes pour que l'espacement reste le meme d'un projet a l'autre. */
+.pipeline-track {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    align-items: start;
+    position: relative;
+    counter-reset: pipeline;
+    max-width: 44rem;
+}
+.pipeline-track.pipeline-track-3 {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 34rem;
+}
+.pipeline-track.pipeline-track-5 {
+    grid-template-columns: repeat(5, 1fr);
+    max-width: 54rem;
+}
+.pipeline-track li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 .3rem;
+    gap: .3rem;
+    cursor: default;
+}
+/* Ligne de progression entre les pastilles */
+.pipeline-track li::before,
+.pipeline-track li::after {
+    content: "";
+    position: absolute;
+    top: 0.9rem;
+    transform: translateY(-50%);
+    height: 4px;
+    background: var(--border, #d1d5db);
+    z-index: 0;
+}
+.pipeline-track li::before {
+    left: 0;
+    right: 50%;
+}
+.pipeline-track li::after {
+    left: 50%;
+    right: 0;
+}
+.pipeline-track li:first-child::before,
+.pipeline-track li:last-child::after {
+    display: none;
+}
+
+.pipeline-track .pipeline-dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--border, #d1d5db);
+    color: var(--muted, #6b7280);
+    font-weight: 700;
+    font-size: .8rem;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.pipeline-track .pipeline-label {
+    font-weight: 600;
+    font-size: .88rem;
+    color: #111827;
+}
+.pipeline-track .pipeline-substatus {
+    font-size: .74rem;
+    color: var(--muted, #6b7280);
+}
+
+/* Etat : etape faite */
+.pipeline-track li[data-state="done"] .pipeline-dot {
+    background: var(--success, #16a34a);
+    border-color: var(--success, #16a34a);
+    color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.15);
+}
+.pipeline-track li[data-state="done"] .pipeline-num-inner::before {
+    content: "\f00c"; /* check */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+.pipeline-track li[data-state="done"] .pipeline-num-inner { font-size: 0; }
+.pipeline-track li[data-state="done"] .pipeline-num-inner::before { font-size: .85rem; }
+/* La ligne ne passe au vert QU'entre deux etapes faites : ainsi la
+   connexion vers une etape "a faire" reste grise, montrant qu'elle
+   n'a pas encore ete atteinte. */
+.pipeline-track li[data-state="done"]:has(+ li[data-state="done"])::after,
+.pipeline-track li[data-state="done"] + li[data-state="done"]::before {
+    background: var(--success, #16a34a);
+}
+
+/* Etat : etape courante */
+.pipeline-track li[data-state="next"] .pipeline-dot {
+    background: #ffffff;
+    border-color: var(--warning, #eab308);
+    color: var(--warning, #eab308);
+    box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.18);
+}
+.pipeline-track li[data-state="next"] .pipeline-label {
+    color: var(--warning, #eab308);
+}
+
+/* Etat : verrouillee */
+.pipeline-track li[data-state="locked"] {
+    opacity: .55;
+}
+
+@media (max-width: 640px) {
+    .pipeline-track {
+        grid-template-columns: 1fr;
+        gap: .5rem;
+    }
+    .pipeline-track li {
+        flex-direction: row;
+        align-items: center;
+        gap: .6rem;
+        text-align: left;
+    }
+    .pipeline-track li::before,
+    .pipeline-track li::after { display: none; }
+    .pipeline-track .pipeline-substatus { margin-left: auto; }
+}
+
+/* ============ Etape 1 : Extraction (lots predefinies) ============ */
+/* Pas de trait continu sous la barre : seul l'onglet actif est souligne,
+   par un trait court aux bouts arrondis. */
+.lot-tabs {
+    display: flex;
+    gap: .3rem;
+    margin: .3rem 0 .8rem;
+}
+.lot-tab {
+    position: relative;
+    background: transparent;
+    border: 0;
+    padding: .5rem .8rem .6rem;
+    cursor: pointer;
+    font-size: .88rem;
+    font-family: inherit;
+    color: var(--muted, #6b7280);
+}
+/* Le soulignement est un pseudo-element : une bordure ne peut pas avoir de
+   bouts arrondis independamment de la boite. */
+.lot-tab::after {
+    content: "";
+    position: absolute;
+    left: .8rem;
+    right: .8rem;
+    bottom: 0;
+    height: 3px;
+    border-radius: 3px;
+    background: transparent;
+}
+.lot-tab.active {
+    color: var(--primary, #0d6efd);
+    font-weight: 600;
+}
+.lot-tab.active::after { background: var(--primary, #0d6efd); }
+.lot-panel.hidden { display: none; }
+
+.lots-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+.lot-card {
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+}
+.lot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .8rem 1rem;
+    flex-wrap: wrap;
+}
+.lot-info { flex: 1 1 20rem; min-width: 15rem; }
+.lot-head strong { font-size: .95rem; color: #111827; }
+.lot-head p { margin: .2rem 0 0; }
+.lot-head-actions {
+    display: flex;
+    gap: .4rem;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.lot-status {
+    padding: .5rem 1rem .1rem;
+    min-height: 1.2em;
+}
+.lot-status.saved { color: var(--success, #16a34a); }
+.lot-status.error { color: var(--error, #dc2626); }
+
+.lot-preview.hidden { display: none; }
+.lot-preview-body {
+    border-top: 1px solid var(--border, #e5e7eb);
+    padding: .8rem 1rem;
+    background: #fafafa;
+}
+.lot-actions {
+    display: flex;
+    gap: .5rem;
+    margin: .5rem 0;
+    flex-wrap: wrap;
+}
+.lot-preview-status {
+    margin: .3rem 0 .6rem;
+    min-height: 1.2em;
+}
+.lot-preview-status.saved { color: var(--success, #16a34a); }
+.lot-preview-status.error { color: var(--error, #dc2626); }
+
+.lot-table-wrap {
+    max-height: 32rem;
+    overflow: auto;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: #ffffff;
+}
+.lot-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .82rem;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+.lot-table th,
+.lot-table td {
+    padding: .35rem .55rem;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    text-align: left;
+    vertical-align: top;
+}
+.lot-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f3f4f6;
+    font-weight: 600;
+    color: var(--muted-strong, #4b5563);
+    z-index: 1;
+}
+/* Une ligne par document : le tableau porte toutes les colonnes du lot, et
+   il defile horizontalement dans `.lot-table-wrap`. Laisser les textes
+   revenir a la ligne donnerait des lignes hautes de six etages, illisibles
+   des qu'on cherche un document. Les valeurs coupees sont en entier dans
+   l'attribut `title`. */
+.lot-table td,
+.lot-table th { white-space: nowrap; }
+.lot-table .lot-cell-clip {
+    display: inline-block;
+    max-width: 30rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+}
+.lot-table td.small .lot-cell-clip { max-width: 16rem; }
+.lot-table td.right,
+.lot-table th.right { text-align: right; }
+.lot-table td.center,
+.lot-table th.center { text-align: center; }
+.lot-table td.small,
+.lot-table th.small { font-size: .78rem; color: var(--muted, #6b7280); }
+.lot-table .lot-cell-yes { color: var(--success, #198754); }
+.lot-descriptif { min-width: 20rem; }
+.lot-table a { color: var(--primary, #0d6efd); text-decoration: none; }
+.lot-table a:hover { text-decoration: underline; }
+
+/* Bandeau de selection en haut du panneau Visualiser */
+.lot-preview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .55rem .8rem;
+    margin: .5rem 0;
+    background: #f9fafb;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+.lot-preview-toolbar .lot-selection-count { flex: 1 1 auto; }
+.lot-preview-toolbar .checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    cursor: pointer;
+    font-size: .88rem;
+}
+.lot-check-cell {
+    width: 1.6rem;
+    text-align: center;
+    padding: .3rem;
+}
+.lot-check-cell input[type="checkbox"] { cursor: pointer; }
+
+/* ============ Etape 1 : panneau d'ajout de documents ============ */
+
+/* Replie dans la page du corpus : on voit arriver ce qu'on ajoute juste
+   au-dessus de la liste. */
+.add-sources-panel { margin-bottom: .9rem; }
+/* Pas de cadre : l'inventaire des documents juste en dessous est, lui,
+   encadre. Deux boites imbriquees rendaient la separation illisible. Un
+   pointille suffit a marquer la frontiere entre les deux. */
+.add-sources-panel {
+    margin-bottom: 1.2rem;
+    padding: 0 0 1.2rem;
+    border-bottom: 1px dashed var(--border, #e5e7eb);
+}
+.add-sources-panel.hidden { display: none; }
+
+/* Zone de glisser-deposer des PDF (onglet « Lot personnalise »). Tout le
+   cadre est cliquable : le <input type="file"> est masque, il ne sert qu'a
+   ouvrir le selecteur du systeme. */
+.sources-drop {
+    margin: .6rem 0 .8rem;
+    padding: 1.4rem 1rem;
+    border: 2px dashed var(--border-strong, #cbd5e1);
+    border-radius: 8px;
+    background: #fbfcfd;
+    text-align: center;
+    cursor: pointer;
+}
+.sources-drop.is-over {
+    border-color: var(--primary, #0d6efd);
+    background: rgba(13, 110, 253, .05);
+}
+.sources-drop p { margin: 0; }
+.sources-drop-main {
+    font-size: .95rem;
+    font-weight: 600;
+    margin-bottom: .35rem !important;
+}
+.sources-drop-main i { margin-right: .4rem; color: var(--primary, #0d6efd); }
+.sources-drop .btn { padding: .15rem .6rem; font-size: .8rem; }
+
+/* File d'attente : une ligne par PDF retenu, avec son URL d'origine. */
+.custom-sources-items {
+    list-style: none;
+    margin: .4rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+/* Une ligne par PDF en attente : nom du fichier et taille en tete, puis les
+   deux champs a completer avant l'envoi (titre, URL d'origine). */
+.custom-source-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: .35rem .5rem;
+    padding: .4rem .5rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 5px;
+    background: #fff;
+}
+/* Les deux champs sous le nom du fichier, l'un au-dessus de l'autre : les
+   valeurs sont longues (un titre de programme, une URL complete) et se
+   lisent mal sur une demi-largeur. Leur propre grille, sinon leurs largeurs
+   seraient dictees par les colonnes de la ligne du dessus. */
+.custom-source-fields {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .3rem;
+}
+.custom-source-field {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+}
+/* Largeur fixe des libelles : les deux champs empiles s'alignent au pixel,
+   sans quoi « Titre » et « URL d'origine » decaleraient leurs champs. */
+.custom-source-field > span { flex: 0 0 7rem; }
+.custom-source-field input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: .25rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .8rem;
+    font-family: inherit;
+    background: #fff;
+}
+/* Champ obligatoire : etoile rouge dans le libelle, bord rouge tant qu'il
+   est vide. Le bouton d'envoi reste verrouille dans ce cas. */
+.req {
+    color: var(--error, #dc2626);
+    font-weight: 700;
+}
+input.is-missing {
+    border-color: var(--error, #dc2626) !important;
+    background: #fff5f5;
+}
+.custom-upload .muted.error,
+#custom-upload-status.error { color: var(--error, #dc2626); }
+.custom-source-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .85rem;
+}
+.custom-source-name i { color: var(--error, #dc2626); margin-right: .3rem; }
+.custom-source-size { text-align: right; }
+.custom-source-url {
+    width: 100%;
+    padding: .25rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .8rem;
+    font-family: inherit;
+    background: #fff;
+}
+.custom-source-del {
+    color: var(--muted, #9ca3af);
+    padding: .15rem .4rem;
+    justify-self: end;   /* sinon le bouton s'etire sur toute sa colonne */
+}
+.custom-sources-refused { margin: .5rem 0 0; }
+.custom-sources-refused i { color: var(--warning, #d97706); margin-right: .3rem; }
+@media (max-width: 720px) {
+    .custom-source-row { grid-template-columns: 1fr auto; }
+    .custom-source-url { grid-column: 1 / -1; }
+}
+
+/* Depot de PDF depuis le navigateur (onglet « Lot personnalise »). */
+.custom-upload {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    flex-wrap: wrap;
+    margin: .5rem 0 .6rem;
+}
+.custom-upload input[type="file"] {
+    font-size: .78rem;
+    font-family: inherit;
+    max-width: 22rem;
+}
+.custom-upload .btn {
+    box-sizing: border-box;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: 0 .8rem;
+    font-size: .78rem;
+    line-height: 1;
+}
+
+/* ============ Etape 1 : inventaire des sources ============ */
+.sources-inventory {
+    margin-top: 1rem;
+    padding: .8rem 1rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: #fbfcfd;
+}
+.sources-inventory-head {
+    display: flex;
+    align-items: baseline;
+    gap: .8rem;
+    flex-wrap: wrap;
+    margin-bottom: .4rem;
+}
+.sources-inventory-head h3 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 600;
+}
+.sources-inventory-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .4rem 0;
+    flex-wrap: wrap;
+}
+.sources-inventory-toolbar .checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    cursor: pointer;
+    font-size: .88rem;
+}
+.sources-inventory-filter {
+    flex: 1 1 12rem;
+    max-width: 24rem;
+    padding: .3rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .85rem;
+    background: #fff;
+}
+/* Hauteur calee sur une vingtaine de lignes : au-dela la liste defile,
+   en deca elle prend juste la place qu'il lui faut. */
+.sources-inv-list {
+    list-style: none;
+    padding: 0;
+    margin: .3rem 0 0;
+    max-height: 42rem;
+    overflow: auto;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: #fff;
+}
+.source-inv-row {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .35rem .6rem;
+    border-bottom: 1px solid var(--border, #f1f2f4);
+    font-size: .85rem;
+}
+/* Les lignes de l'etape 1 portent un volet d'edition sous elles : la ligne
+   devient un bloc, et c'est `.source-inv-main` qui aligne les colonnes.
+   Les listes qui reutilisent `.source-inv-row` (etape 5) gardent le flex. */
+.sources-inv-list .source-inv-row {
+    display: block;
+    padding: 0;
+}
+.sources-inv-list .source-inv-main {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .35rem .6rem;
+}
+.source-inv-row:last-child { border-bottom: none; }
+.source-inv-row.hidden { display: none; }
+.source-inv-row.is-excluded {
+    background: #f9fafb;
+    color: var(--muted, #6b7280);
+}
+.source-inv-row.is-excluded .source-inv-name { text-decoration: line-through; }
+.source-inv-check-label {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    cursor: pointer;
+    min-width: 0;
+}
+.source-inv-check { cursor: pointer; }
+.source-inv-name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.source-inv-name i { color: var(--muted, #6b7280); margin-right: .2rem; }
+.source-inv-pages,
+.source-inv-size { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+/* Deux colonnes de bout de ligne, largeur fixe pour qu'elles s'empilent
+   droit d'une ligne a l'autre quels que soient le nom et la taille. */
+.source-inv-url,
+/* Memes boutons que dans l'editeur de schema : une case encadree par
+   action, icone coloree selon ce qu'elle fait. */
+/* Le groupe d'actions se detache de la taille du fichier, mais ses trois
+   boutons restent serres entre eux, comme dans l'editeur de schema. */
+.source-inv-url { margin-left: .7rem; }
+.source-inv-edit,
+.source-inv-del { margin-left: calc(.2rem - .8rem); }
+.source-inv-url,
+.source-inv-edit,
+.source-inv-del {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Carre : meme largeur que hauteur, l'icone est centree dedans. */
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    border: 1px solid var(--border, #dde1e6);
+    border-radius: 4px;
+    background: var(--panel-alt, #f9fafb);
+    font-size: .82rem;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+}
+.source-inv-url { color: var(--border-strong, #c0c7d0); cursor: default; }
+.source-inv-url.is-set { color: var(--accent, #0d6efd); cursor: pointer; }
+.source-inv-edit { color: var(--muted-strong, #4b5563); }
+.source-inv-del { color: var(--error, #dc2626); }
+.source-inv-url.is-set:hover,
+.source-inv-edit:hover,
+.source-inv-edit.is-open,
+.source-inv-del:hover { background: var(--panel, #fff); border-color: var(--muted, #6b7280); }
+.source-inv-edit.is-open { color: var(--accent, #0d6efd); }
+.source-inv-edit:disabled,
+.source-inv-del:disabled { opacity: .45; cursor: default; }
+
+/* Volet d'edition d'une ligne : titre puis URL d'origine, l'un sous l'autre,
+   replie par defaut. Meme disposition que la file d'attente du depot. */
+.source-inv-editor {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: .3rem .6rem;
+    padding: .5rem .6rem .6rem 2.2rem;
+    background: #f9fafb;
+    border-top: 1px dashed var(--border, #e5e7eb);
+}
+.source-inv-editor.hidden { display: none; }
+.source-inv-field {
+    grid-column: 1 / 2;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+}
+.source-inv-field > span { flex: 0 0 7rem; }
+.source-inv-field input {
+    width: 100%;
+    padding: .25rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .8rem;
+    font-family: inherit;
+    background: #fff;
+}
+/* Bouton d'enregistrement a droite, sur la hauteur des deux champs. */
+.source-inv-editor-actions {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+/* Bouton d'enregistrement reduit a sa coche : la ligne porte deja trois
+   icones, un libelle en toutes lettres y pesait trop. Le geste reste
+   explicite par l'infobulle et par la touche Entree dans les champs. */
+.source-inv-save {
+    padding: .25rem .5rem;
+    line-height: 1;
+}
+/* Message d'erreur sous les deux champs, pas a cote du bouton : c'est aux
+   champs qu'il se rapporte, et la place a droite est comptee. */
+.source-inv-save-status {
+    grid-column: 1 / -1;
+    min-height: 0;
+    padding-left: 7.4rem;   /* aligne le message sur les champs */
+}
+.source-inv-save-status:empty { display: none; }
+.source-inv-save-status.error { color: var(--error, #dc2626); }
+/* ============ Editeur de schema RAG ============ */
+.schema-editor { display: flex; flex-direction: column; gap: .6rem; }
+.schema-editor-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.schema-save-status {
+    font-size: .78rem;
+    transition: color 0.15s;
+    flex: 0 0 auto;
+}
+.schema-save-status.saved { color: var(--success, #16a34a); }
+.schema-save-status.error { color: var(--error, #dc2626); }
+/* Cadre du tableau, meme facture que la liste des documents de l'etape 1 :
+   une bordure grise, rien de plus. Il delimite, il ne signifie pas. */
+.schema-frame {
+    padding: .8rem 1rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: #fbfcfd;
+}
+.schema-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .88rem;
+}
+.schema-table th {
+    text-align: left;
+    font-size: .78rem;
+    color: var(--muted-strong, #4b5563);
+    padding: .3rem .4rem;
+    font-weight: 600;
+}
+/* Les deux premieres colonnes recoivent une largeur en `ch` calculee au
+   rendu (voir renderSchemaEditor) ; la Description prend le reste, bornee
+   pour rester lisible sur grand ecran. */
+.schema-table .schema-col-desc { max-width: 46ch; }
+.schema-table .schema-col-actions { width: 1%; }
+/* Remplissage des champs vides : un encart au pied de l'etape 3, et non une
+   etape. Un filet a gauche le detache de ce qui precede sans en faire une
+   section a part entiere. */
+.fill-inline {
+    margin-top: 1rem;
+    padding: .75rem 0 .1rem .9rem;
+    border-left: 3px solid var(--accent, #0d6efd);
+}
+.fill-inline > .convert-cta { margin-bottom: .4rem; }
+
+/* Colonne des filtres : une case a cocher, rien de plus. En-tete `#`, la
+   marque que porteront les cles cochees. */
+.schema-table .schema-col-filtre {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+}
+/* La colonne des filtres est la premiere du tableau : les regles de bord
+   (`td:first-child`, et son rattrapage de 1.5px pour la bordure du cadre) lui
+   posent un padding gauche plus large que le droit, ce qui decale la case
+   vers la droite du centre. On rend le padding symetrique, et la case se
+   centre d'elle-meme plutot que par l'alignement du texte, qui suivrait a
+   nouveau la moindre asymetrie. */
+.schema-table td.schema-col-filtre,
+.schema-table tbody td.schema-col-filtre:first-child {
+    padding-left: .3rem;
+    padding-right: .3rem;
+}
+.schema-table td.schema-col-filtre input[type="checkbox"] {
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+/* La case cochee dit deja qu'un champ sert de filtre : un `#` devant la cle
+   repetait la meme information et rognait la place du nom. */
+.schema-key-cell { position: relative; }
+/* Colonne Type : le selecteur, et sous lui le vocabulaire quand le type
+   est une liste fermee. */
+.schema-table .schema-col-type { width: 17ch; }
+.schema-type-cell {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+.schema-type-cell select {
+    width: 100%;
+    padding: .3rem .4rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .78rem;
+    font-family: inherit;
+    background: #fff;
+}
+.schema-table input.schema-options {
+    font-size: .75rem;
+    font-family: var(--font-mono, monospace);
+}
+.schema-table td {
+    padding: .3rem .3rem;
+    vertical-align: middle;
+}
+.schema-table td:first-child { padding-left: .5rem; }
+.schema-table td:last-child { padding-right: .5rem; }
+/* Les lignes hors cadre rattrapent en padding l'epaisseur de la bordure que
+   portent les cellules de bord du cadre : sans ca, leurs champs et leurs
+   boutons sont decales de 1.5px. Une bordure transparente ferait le meme
+   calage, mais deux bordures adjacentes se biseautent en `separate` et le
+   trait du cadre se creuse d'une encoche a chaque cellule. */
+.schema-table tbody td:first-child {
+    padding-left: calc(.5rem + 1.5px);
+}
+.schema-table tbody td:last-child {
+    padding-right: calc(.5rem + 1.5px);
+}
+.schema-table input[type="text"] {
+    width: 100%;
+    padding: .3rem .5rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .8rem;
+    font-family: inherit;
+    background: #ffffff;
+}
+.schema-table input.schema-key { font-family: var(--font-mono, monospace); }
+/* Pas de `display: flex` ici : ce <td> porte la bordure droite du cadre, et
+   une cellule de tableau passee en flex n'est plus une vraie cellule (le
+   navigateur en genere une anonyme autour), donc sa bordure ne fait plus
+   toute la hauteur de la ligne. `font-size: 0` mange les blancs entre les
+   boutons inline, l'ecart vient des marges. */
+.schema-actions {
+    text-align: right;
+    white-space: nowrap;
+    font-size: 0;
+}
+.schema-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    font-size: .82rem;
+    vertical-align: middle;
+}
+.schema-actions .btn + .btn { margin-left: .2rem; }
+.schema-actions .schema-del { color: var(--error, #dc2626); }
+/* Cadre des champs qui partent dans la collection Albert. Le groupe est un
+   <tbody>, mais la bordure est posee sur les cellules de bord : c'est ce qui
+   permet d'arrondir les coins, une bordure de <tbody> n'etant pas peinte en
+   `border-collapse: separate`. Le texte au-dessus reprend la couleur du cadre
+   pour qu'on lise les deux comme un seul bloc. */
+
+.schema-actions-bar {
+    display: flex;
+    gap: .5rem;
+    padding-top: .5rem;
+    border-top: 1px dashed var(--border, #e5e7eb);
+}
+
+/* Etat verrouille : rend clairement inactifs les champs et boutons du schema. */
+.schema-editor.is-locked .schema-table input[type="text"],
+.schema-editor.is-locked .schema-table input[readonly],
+.schema-editor.is-locked .schema-table input[disabled] {
+    background: #f3f4f6;
+    color: var(--muted-strong, #4b5563);
+    border-color: transparent;
+    cursor: not-allowed;
+    user-select: text;
+}
+.schema-editor.is-locked .schema-table input[type="text"]:focus,
+.schema-editor.is-locked .schema-table input[readonly]:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: transparent;
+}
+.schema-editor.is-locked .schema-table input[type="checkbox"]:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+.schema-editor.is-locked .schema-actions .btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+.schema-locked-banner {
+    margin: .3rem 0 .2rem;
+    padding: .5rem .8rem;
+    border-radius: 4px;
+    background: rgba(22, 163, 74, 0.08);
+    color: var(--success, #16a34a);
+    font-size: .85rem;
+}
+.schema-locked-banner i { margin-right: .35rem; }
+
+/* ============ Sources : liste + panneau metadonnees ============ */
+.sources-list {
+    list-style: none;
+    padding: 0;
+    margin: .5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+.source-row {
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    background: #ffffff;
+}
+/* Etape 3 : bordure verte sur ce qui est deja converti.
+   `is-pending-convert` est le seul etat pose sans conversion de reference ;
+   viser son absence evite d'enumerer les trois autres, qui parlent de
+   validation et ne concernent pas cette page.
+   L'ombre interieure epaissit le trait sans changer la taille de la boite :
+   une bordure de 2px decalerait les lignes converties d'un pixel.
+   Reserve a la page des conversions : en validation, le vert appartient deja
+   au rond de validation, et le reprendre ici dirait deux choses a la fois. */
+body[data-page="conversions"] .source-row:not(.is-pending-convert) {
+    border-color: var(--success);
+    box-shadow: inset 0 0 0 1px var(--success);
+}
+.source-line {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .55rem .8rem;
+    font-size: .9rem;
+}
+.source-name {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-weight: 600;
+    color: #111827;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.source-name i { color: var(--muted, #6b7280); }
+/* Quand le titre metier est connu, il prend la ligne principale et le nom de
+   fichier passe en dessous, en plus petit et en gris clair. */
+.source-name.has-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+}
+.source-name.has-title .source-title,
+.source-name.has-title .source-filename {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.source-name.has-title .source-filename {
+    font-weight: 400;
+    font-size: .72rem;
+    color: var(--muted, #9ca3af);
+}
+.source-name.has-title .source-filename i { font-size: .68rem; }
+.source-size {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+.src-meta-badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .78rem;
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border, #e5e7eb);
+    color: var(--muted, #6b7280);
+    background: #f9fafb;
+}
+.src-meta-badge.on {
+    color: var(--success, #16a34a);
+    border-color: var(--success, #16a34a);
+    background: rgba(22, 163, 74, 0.08);
+}
+/* Anciennes classes src-valid-badge : plus utilisees, remplacees par
+   .valid-pill ci-dessous. Conservees pour compat au cas ou. */
+.src-valid-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .78rem;
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border, #e5e7eb);
+    color: var(--muted, #6b7280);
+    background: #f9fafb;
+}
+
+/* ----- Puces de validation compactes (MD / Meta) ----- */
+/* Indicateur unique de validation d'une ligne de conversion : vert quand le
+   Markdown et les metadonnees sont valides, gris clair sinon. Purement
+   informatif — valider se fait dans le viewer. */
+.valid-dot {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: default;
+}
+.valid-dot.on { color: var(--success, #16a34a); }
+.valid-dot.off,
+.valid-dot.none { color: #d1d5db; }
+
+/* Variante bouton : le rond bascule la validation du document. */
+button.valid-dot {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.15rem;
+}
+button.valid-dot:hover.on { color: #12833c; }
+button.valid-dot:hover.off { color: #9aa2ad; }
+button.valid-dot:focus-visible {
+    outline: 2px solid var(--primary, #0d6efd);
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+button.valid-dot:disabled { cursor: wait; }
+
+/* Ligne d'en-tete de la liste des documents : elle ne porte que le rond de
+   validation en lot. Le retrait a droite reprend celui de `.source-line`
+   (.8rem) plus la bordure de `.source-row` (1px), pour que ce rond tombe
+   pile dans la colonne des ronds de chaque ligne. */
+.sources-list-head {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 calc(.8rem + 1px) 0 0;
+    /* Colle a ce qui precede, respire juste au-dessus de la premiere ligne. */
+    margin: 0 0 1rem;
+}
+/* Page de validation : le rond ouvre chaque ligne, celui d'en-tete doit
+   donc tomber dans la meme colonne, a gauche. Le retrait reprend la bordure
+   de la ligne (1px), son padding (.8rem) et la demi-cellule du rond, pour
+   que les centres soient alignes. */
+.sources-list-head-left {
+    justify-content: flex-start;
+    padding: 0 0 0 calc(.8rem + 1px);
+}
+.sources-list-head-left .valid-dot-all {
+    width: 1.4rem;
+    display: inline-flex;
+    justify-content: center;
+}
+/* L'en-tete remplace la marge haute de la liste, sinon les deux s'ajoutent. */
+.sources-list-head:not(.hidden) + #conversions-list > .sources-list {
+    margin-top: 0;
+}
+
+/* Rond « double check » : valide tous les documents convertis d'un coup. Le
+   second chevron est superpose au rond pour le distinguer d'une validation
+   individuelle sans changer sa taille. */
+.valid-dot-all {
+    position: relative;
+}
+.valid-dot-all .valid-dot-all-second {
+    position: absolute;
+    right: -.32rem;
+    bottom: -.1rem;
+    font-size: .62rem;
+    background: #ffffff;
+    border-radius: 50%;
+    padding: .06rem;
+}
+.valid-pill.on {
+    color: #ffffff;
+    background: var(--success, #16a34a);
+    border-color: var(--success, #16a34a);
+}
+button.valid-pill.off:hover {
+    border-color: var(--border, #e5e7eb);
+    color: var(--muted, #6b7280);
+}
+
+/* ----- Bouton primaire "Réviser" (bleu) / secondaire "Modifier" ----- */
+.primary-review {
+    flex: 0 0 auto;
+    font-weight: 600;
+    letter-spacing: .01em;
+    /* Meme hauteur que les puces .valid-pill (contraint via min/max-height).
+       Meme largeur entre "Réviser" (primary) et "Modifier" (ghost) via
+       min-width + justify-content:center pour aligner les 2 variantes. */
+    min-height: 2.3rem;
+    max-height: 2.3rem;
+    min-width: 7rem;
+    justify-content: center;
+    box-sizing: border-box;
+}
+.primary-review.btn.primary {
+    padding-left: .9rem;
+    padding-right: .9rem;
+    font-size: .85rem;
+    box-shadow: 0 1px 2px rgba(13, 110, 253, 0.15);
+}
+.primary-review.btn.primary:hover {
+    /* Pas d'animation : ni translation ni changement d'ombre. */
+    transform: none;
+    box-shadow: 0 1px 2px rgba(13, 110, 253, 0.15);
+}
+
+/* ----- Bouton icone metadata inline (secondaire) ----- */
+.src-inline-meta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted, #6b7280);
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.src-inline-meta-btn:hover {
+    background: var(--panel-alt, #fafbfc);
+    color: var(--primary, #0d6efd);
+    border-color: var(--muted, #6b7280);
+}
+
+/* ----- Résumé de progression en tete de la liste ----- */
+.extraction-summary {
+    background: var(--panel-alt, #fafbfc);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    padding: .8rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+.extraction-summary-line {
+    font-size: .88rem;
+    color: var(--text, #1a1d21);
+}
+/* Résumé de la page conversions : ligne simple, sans cadre, au-dessus de la
+   barre de sélection. */
+#conversions-summary .extraction-summary-line { margin: .6rem 0 .2rem; }
+.extraction-summary-line .ok { color: var(--success, #16a34a); }
+.extraction-summary-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .8rem;
+}
+.extraction-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: .5rem;
+    align-items: center;
+    font-size: .78rem;
+}
+.extraction-bar-label {
+    color: var(--muted-strong, #4b5563);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.extraction-bar-track {
+    height: .45rem;
+    background: #f3f4f6;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border, #e5e7eb);
+}
+.extraction-bar-fill {
+    height: 100%;
+    background: var(--success, #16a34a);
+    transition: width 0.3s ease;
+    border-radius: inherit;
+}
+.extraction-bar-count {
+    color: var(--muted, #6b7280);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+}
+
+#conversions-block { margin-top: .6rem; }
+
+/* ----- Etape 5 : envoi vers une collection ----- */
+/* Compte rendu d'envoi, affiche au contact du formulaire. */
+.upload-report {
+    margin: .2rem 0 .4rem;
+    padding: .55rem .8rem;
+    border-radius: 4px;
+    font-size: .8rem;
+    line-height: 1.5;
+}
+.upload-report p { margin: 0 0 .3rem; }
+.upload-report p:last-child { margin-bottom: 0; }
+.upload-report i { margin-right: .4rem; }
+.upload-report-causes-title { font-weight: 600; margin-top: .4rem; }
+.upload-report-causes {
+    list-style: none;
+    margin: .1rem 0 .4rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+/* Nom du document sur sa ligne, message d'erreur en dessous : les noms de
+   fichiers sont longs, les mettre cote a cote rendait les deux illisibles. */
+.upload-report-causes li {
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+}
+.upload-report-doc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    align-items: baseline;
+}
+.upload-report-msg {
+    min-width: 0;
+    padding-left: .8rem;
+    word-break: break-word;
+    opacity: .9;
+}
+/* Explication de la cause : ce qu'il faut faire, distinct du message brut. */
+.upload-report-hint {
+    margin-top: .35rem;
+    padding: .4rem .6rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .55);
+    font-weight: 600;
+}
+.upload-report-hint i { margin-right: .35rem; }
+/* Lien vers le rapport : pastille discrete plutot qu'un lien souligne, pour
+   qu'il se lise comme une action secondaire et non comme du texte. */
+.upload-report-link {
+    margin-top: .5rem;
+    padding-top: .5rem;
+    border-top: 1px solid rgba(0, 0, 0, .08);
+}
+.upload-report-link a {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .25rem .6rem;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    color: inherit;
+    text-decoration: none;
+    font-size: .76rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, .5);
+}
+.upload-report-link a:hover { background: rgba(255, 255, 255, .9); }
+.upload-report-link a i { margin-right: 0; }
+/* Les liens dans les explications restent des liens de texte. */
+.upload-report-hint a { color: inherit; text-decoration: underline; }
+.upload-report.is-ok {
+    background: rgba(22, 163, 74, .09);
+    color: #15803d;
+}
+.upload-report.is-partial {
+    background: rgba(217, 119, 6, .1);
+    color: #b45309;
+}
+.upload-report.is-error {
+    background: rgba(220, 38, 38, .08);
+    color: var(--error, #dc2626);
+}
+.upload-report code { color: inherit; }
+
+.upload-volume { margin: .2rem 0 .4rem; }
+.upload-volume strong { color: var(--text, #1a1d21); }
+
+/* Liste de controle avant envoi : lecture seule, meme gabarit compact que
+   l'inventaire de l'etape 1. */
+/* Meme regle que la liste de l'etape 1 : une vingtaine de lignes visibles,
+   puis defilement. Les lignes y sont plus hautes (titre + nom de fichier). */
+.upload-docs-list {
+    list-style: none;
+    margin: .2rem 0 .9rem;
+    padding: 0;
+    max-height: 46rem;
+    overflow: auto;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: #fff;
+}
+.upload-docs-list .source-inv-row.is-stale { background: #fffbeb; }
+/* Titre sur la premiere ligne, nom de fichier en dessous : meme hierarchie
+   que dans les listes des etapes 3 et 4. */
+.upload-docs-list .source-inv-name {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+    line-height: 1.35;
+}
+.upload-doc-title,
+.upload-doc-file {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.upload-doc-file {
+    font-size: .72rem;
+    font-weight: 400;
+    color: var(--muted, #9ca3af);
+}
+.upload-doc-file i { font-size: .68rem; margin-right: .2rem; }
+/* La ligne devient haute de deux lignes : on aligne les compteurs en haut. */
+.upload-docs-list .source-inv-row { align-items: flex-start; }
+.upload-docs-list .source-inv-size { padding-top: .1rem; }
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    /* Detache le formulaire du cadre « Documents » qui le precede. */
+    margin-top: 1.2rem;
+}
+.upload-row {
+    display: flex;
+    align-items: flex-end;
+    gap: .8rem;
+    flex-wrap: wrap;
+}
+.upload-field {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    font-size: .78rem;
+    color: var(--muted-strong, #4b5563);
+}
+.upload-field select {
+    min-width: 18rem;
+    height: 2rem;
+    box-sizing: border-box;
+    padding: 0 .4rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text, #1a1d21);
+    font-family: inherit;
+    font-size: .8rem;
+}
+.upload-row .btn {
+    box-sizing: border-box;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: 0 .9rem;
+    font-size: .78rem;
+    line-height: 1;
+}
+.upload-danger { font-size: .78rem; color: #b45309; }
+.upload-danger i { margin-right: .25rem; }
+
+/* ----- Nb de pages / taille, et sous eux le moteur de reference ----- */
+.source-meta-cell {
+    flex: 0 0 auto;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+    line-height: 1.35;
+}
+.source-meta-line {
+    display: inline-flex;
+    gap: .5rem;
+    white-space: nowrap;
+}
+.source-pages,
+.source-size {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.source-engine {
+    font-size: .62rem;
+    font-style: italic;
+    color: #b0b6bf;
+    white-space: nowrap;
+}
+
+/* En-tete de la page extraction : titre + actions */
+.extraction-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.extraction-header .page-title { margin-bottom: 0; }
+.src-meta-toggle,
+.src-view-btn {
+    flex: 0 0 auto;
+    font-size: .82rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    text-decoration: none;
+}
+.src-view-btn.disabled {
+    opacity: .5;
+    cursor: default;
+}
+.source-meta-panel.hidden,
+.source-md-panel.hidden { display: none; }
+.source-md-fm dl.fm-technical dt,
+.source-md-fm dl.fm-technical dd {
+    color: var(--muted, #6b7280);
+    font-size: .7rem;
+}
+
+.meta-editor { display: flex; flex-direction: column; gap: 1rem; }
+.meta-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.meta-editor-head h4 {
+    margin: 0;
+    font-size: .95rem;
+    color: #111827;
+}
+.meta-save-status {
+    font-size: .78rem;
+    transition: color 0.15s;
+}
+.meta-save-status.saved { color: var(--success, #16a34a); }
+.meta-save-status.error { color: var(--error, #dc2626); }
+
+
+/* URL d'origine : cle technique du sidecar, pas un champ du schema. Elle est
+   posee au-dessus de la grille et separee par un pointille pour qu'on la lise
+   comme appartenant a un autre registre. */
+.meta-source-url {
+    margin-bottom: .7rem;
+    padding-bottom: .6rem;
+    border-bottom: 1px dashed var(--border, #e5e7eb);
+}
+.meta-source-url .meta-field input { max-width: 46rem; }
+.meta-source-url-open {
+    font-weight: 500;
+    font-size: .72rem;
+    text-transform: lowercase;
+}
+.meta-source-url-open i { font-size: .62rem; }
+.meta-source-url-note { margin: .25rem 0 0; }
+.meta-source-url-note.is-invalid { color: var(--error, #dc2626); }
+
+.meta-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .6rem 1rem;
+}
+@media (max-width: 900px) {
+    .meta-fields-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .meta-fields-grid { grid-template-columns: 1fr; }
+}
+.meta-field { display: flex; flex-direction: column; gap: .2rem; }
+.meta-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+    color: var(--muted-strong, #4b5563);
+    font-weight: 600;
+}
+.meta-field-source {
+    display: inline-block;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 500;
+    /* Pas de `text-transform` : « LLM » est un sigle, le forcer en minuscules
+       le ferait lire comme un mot. Les autres libelles sont deja en bas de
+       casse dans le code. */
+    letter-spacing: .02em;
+    border: 1px solid transparent;
+}
+/* Deduit par un modele : la seule des trois qui reste a verifier. */
+.meta-field-source.auto {
+    color: #0d6efd;
+    background: rgba(13, 110, 253, 0.08);
+    border-color: rgba(13, 110, 253, 0.25);
+}
+/* Porte par le jeu de donnees d'origine : ni devine, ni saisi ici. */
+.meta-field-source.lot {
+    color: #b45309;
+    background: rgba(180, 83, 9, 0.08);
+    border-color: rgba(180, 83, 9, 0.25);
+}
+.meta-field-source.manual {
+    color: var(--success, #16a34a);
+    background: rgba(22, 163, 74, 0.08);
+    border-color: rgba(22, 163, 74, 0.25);
+}
+.meta-field-source.empty {
+    color: var(--muted, #6b7280);
+    background: #f3f4f6;
+    border-color: var(--border, #e5e7eb);
+}
+.meta-field input,
+.meta-field textarea,
+.meta-field select {
+    padding: .3rem .45rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: .78rem;
+    line-height: 1.35;
+    font-family: inherit;
+    background: #ffffff;
+}
+.meta-field textarea {
+    resize: vertical;
+    min-height: 7.5rem;
+}
+
+/* ============ Extraction : conversion doc-par-doc ============ */
+.extraction-bulk-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .1rem;
+    padding: 0 0 .6rem;
+    margin: 1.1rem 0 .4rem;
+}
+.extraction-bulk-bar .bulk-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+/* Deuxieme ligne (resume) alignee sur le libelle « Tout selectionner »,
+   donc decalee de la largeur de la case a cocher et de son gap. */
+.extraction-bulk-bar .bulk-row-indent {
+    padding-left: calc(13px + .9rem);
+}
+.extraction-bulk-bar .extraction-bulk-summary {
+    flex: 1 1 auto;
+    min-width: 12rem;
+}
+/* Le menu et le bouton doivent faire exactement la meme hauteur : on la fixe
+   des deux cotes plutot que de la laisser dependre des metriques de police
+   (le select non style prend celles du navigateur, pas celles de la page). */
+.extraction-bulk-bar #bulk-engine,
+.extraction-bulk-bar .btn {
+    box-sizing: border-box;
+    height: 1.65rem;
+    font-size: .74rem;
+    border-radius: 4px;
+    line-height: 1;
+}
+.extraction-bulk-bar #bulk-engine {
+    padding: 0 .3rem;
+    border: 1px solid var(--border, #d1d5db);
+    background: #ffffff;
+    color: var(--text, #1a1d21);
+    font-family: inherit;
+}
+.extraction-bulk-bar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: 0 .65rem;
+}
+/* Toute la barre a la taille de `.small` (celle du resume) : libelles,
+   menu et bouton compris. */
+.extraction-bulk-bar .checkbox-inline {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .78rem;
+    cursor: pointer;
+}
+.source-check-cell {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+}
+.source-check {
+    cursor: pointer;
+    width: 1rem;
+    height: 1rem;
+}
+.source-check-placeholder {
+    display: inline-block;
+    width: 1rem;
+}
+.primary-convert {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.doc-eta {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+/* Bouton en cours de chargement : centre le spinner et fige la largeur au
+   contenu initial (sinon la moitie gauche reste vide car le texte disparait). */
+.btn.is-loading {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+.btn.is-loading i {
+    margin: 0;
+}
+.extraction-progress-host {
+    margin: .5rem 0;
+}
+
+/* Ligne "moteur + convertir + historique" par document (page conversions.html) */
+/* Ce que le PDF dit de lui-meme, sous le choix du moteur : une mesure, pas
+   une injonction. Meme retrait que le menu, pour se lire comme sa note. */
+.doc-conseil {
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    margin: 0;
+    padding: 0 .8rem .6rem 3rem;
+    font-size: .74rem;
+    line-height: 1.4;
+}
+.doc-conseil i { color: var(--muted, #6b7280); }
+
+.doc-convert-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .8rem;
+    /* 0.8rem (padding de .source-line) + 1.4rem (case) + 0.8rem (gap)
+       pour aligner le bouton sur le titre du document au-dessus. */
+    padding: .35rem .8rem .6rem 3rem;
+    border-top: 1px dashed var(--border, #e5e7eb);
+}
+/* Tous les controles de la seconde ligne partagent la meme boite : hauteur
+   imposee, padding horizontal seul. Sinon un select non style et un bouton
+   ne tombent jamais a la meme taille. */
+.doc-convert-line .doc-engine-select,
+.doc-convert-line .btn,
+.doc-convert-line .primary-review {
+    box-sizing: border-box;
+    height: 1.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    padding: 0 .7rem;
+    font-size: .78rem;
+    line-height: 1;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+/* `.primary-review` impose ailleurs min/max-height et une police plus grande
+   (heritage de l'epoque ou il s'alignait sur les pastilles de la 1re ligne).
+   Il est maintenant a cote de « Convertir » : on neutralise ces contraintes,
+   avec assez de specificite pour battre `.primary-review.btn.primary`. */
+.doc-convert-line .primary-review.btn,
+.doc-convert-line .primary-review.btn.primary {
+    min-height: 0;
+    max-height: none;
+    height: 1.9rem;
+    min-width: 0;
+    padding: 0 .7rem;
+    font-size: .78rem;
+}
+.doc-engine-select {
+    border: 1px solid var(--border, #d1d5db);
+    background: #fff;
+    padding: 0 .4rem;
+}
+/* Pousse la dernière action en bout de ligne. */
+.doc-convert-line .doc-line-spacer { flex: 1 1 auto; }
+/* Une ligne d'actions sans menu ni indicateur à gauche (étape 4) n'a pas
+   besoin du retrait qui aligne le menu sur le titre. */
+#segments-list .doc-convert-line { padding-left: 3rem; }
+.doc-history-list li.is-active {
+    background: #eaf5d4;
+}
+.btn.btn-tiny {
+    padding: .2rem .45rem;
+    font-size: .8rem;
+}
+.convert-cta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: .8rem;
+    flex-wrap: wrap;
+}
+
+/* Le fichier sous le titre d'un lot : present, mais sans se disputer la
+   lecture avec le titre. */
+.lot-file {
+    margin: .15rem 0 0;
+    font-size: .72rem;
+    color: var(--muted, #9aa3ad);
+}
+
+/* La presentation d'un lot, au-dessus de sa liste de documents. */
+.lot-presentation {
+    display: grid;
+    grid-template-columns: minmax(7rem, auto) 1fr;
+    gap: .2rem .9rem;
+    margin: 0 0 .7rem;
+    font-size: .8rem;
+}
+.lot-presentation dt { color: var(--muted, #6b7280); }
+.lot-presentation dd { margin: 0; }
+
+/* Une valeur de presentation peut arriver en HTML : on lui rend ses
+   paragraphes sans qu'ils ecartent les lignes du tableau. */
+.lot-presentation dd > p { margin: 0 0 .35rem; }
+.lot-presentation dd > p:last-child { margin-bottom: 0; }
+.lot-presentation dd ul,
+.lot-presentation dd ol { margin: .2rem 0 .35rem 1.1rem; padding: 0; }
+
+/* Le retour est une action, pas une note : il en prend la forme. Une
+   fleche suffit, le libelle vit dans l'infobulle. */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    font-size: .8rem;
+    line-height: 1;
+}
+.btn-back i { margin: 0; }
+.step-note .btn-back { text-decoration: none; }
+
+/* Ligne posee par le pipeline, pas par l'utilisateur : lisible, inerte. */
+/* Un champ verrouille se lit pareil partout : `titre`, `source_url` ou
+   schema entier verrouille. Seuls les champs restes editables gardent leur
+   fond blanc, et doivent donc en avoir l'air. */
+.schema-table input:disabled,
+.schema-table select:disabled {
+    background: var(--panel-alt, #f9fafb);
+    color: var(--muted, #6b7280);
+    cursor: default;
+}
+.schema-fixed-mark {
+    display: inline-block;
+    width: 1.7rem;
+    text-align: center;
+    font-size: .72rem;
+    color: var(--border-strong, #c0c7d0);
+}
+
+/* Liste des Markdown de l'etape 3 : meme ligne que l'inventaire des
+   sources, sans les cases a cocher. */
+#md-inventory { margin-top: .8rem; }
+.md-inv-todo { color: var(--warning-strong, #b45309); }
+
+/* Une ligne de Markdown : le titre, et le fichier juste dessous. */
+.md-inv-doc { flex: 1 1 auto; min-width: 0; }
+.md-inv-title { display: block; }
+.md-inv-file {
+    display: block;
+    font-size: .72rem;
+    color: var(--muted, #6b7280);
+}
+.md-inv-file i { margin-right: .25rem; }
+.md-inventory-actions { margin: .6rem 0 .4rem; }
+/* Les logos suivent la ligne de texte : alignement sur leur milieu plutot
+   que sur la ligne de base. */
+.md-logo {
+    height: 15px;
+    width: auto;
+    /* Un pixel plus bas que le milieu de la ligne : cale a l'oeil sur la
+       hauteur des minuscules. */
+    vertical-align: -.25em;
+    position: relative;
+    top: 1px;
+}
+
+/* Une ligne de Markdown en colonnes fixes : les etats s'alignent d'une
+   ligne a l'autre, seul le titre prend ce qui reste. */
+.md-inv-row .source-inv-main {
+    display: grid;
+    grid-template-columns: auto 1fr 7rem 9.5rem 5rem auto;
+    align-items: center;
+    gap: .6rem;
+}
+.md-inv-size { text-align: right; }
+.md-inventory-actions {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+}
+/* Meme taille et meme couleur que le texte de l'etape (0.88rem, soit
+   13,2 px, et `--text-soft`), que la regle propre du label ecrasait. */
+/* Cale sur la premiere case de la liste : bordure du cadre plus marge
+   interne de la ligne, mesurees a 10 px. */
+.md-inventory-select { margin: 1rem 0 .35rem; padding-left: 10px; }
+.md-inventory-suite {
+    font-size: .88rem;
+    color: var(--text-soft);
+}
+.md-inventory-select .checkbox-inline,
+.md-inventory-select .checkbox-inline span {
+    font-size: .78rem;
+    color: var(--text-soft);
+}
+
+/* Fenetre de creation d'un corpus : le champ donne la largeur, le texte la
+   reprend, et le bouton se centre dessous. Le label herite d'une marge
+   interne d'ailleurs ; on la retire ici pour que tout parte du meme bord. */
+.create-corpus .upload-field { padding: 0; }
+.create-corpus .upload-field input { width: 100%; box-sizing: border-box; }
+/* Specificite alignee sur `dialog.app-modal .modal-body p`, qui remet
+   toutes les marges a zero dans une modale. */
+dialog.app-modal .modal-body.create-corpus > p.muted {
+    margin: 1.6rem 0 0;
+    max-width: 100%;
+}
+dialog.app-modal .modal-body.create-corpus > p.custom-upload,
+.create-corpus .custom-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .4rem;
+    margin-top: 1.2rem;
+}
+
+/* Lien d'etape fermee : visible, inerte, et qui dit pourquoi au survol.
+   `pointer-events` reste actif pour que l'infobulle s'affiche ; c'est le
+   gardien de clic qui empeche la navigation. */
+a.btn.is-disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* ----- Apercu du Markdown, deplie sous sa ligne (etape 5) ----- */
+.md-inv-preview {
+    margin: .1rem 0 .5rem 2rem;
+}
+.md-inv-code {
+    margin: 0;
+    padding: .7rem .9rem;
+    max-height: 24rem;
+    overflow: auto;
+    background: #fbfcfd;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 6px;
+    font-family: var(--font-mono, monospace);
+    /* Meme raison que dans l'editeur du viewer : ce bloc montre du Markdown
+       brut, et les ligatures de Cascadia Code y masquent les `**` et les
+       `--` que l'on vient justement lire. */
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
+    font-size: .78rem;
+    line-height: 1.5;
+    /* Le Markdown est du texte : il se replie plutot que de forcer une
+       barre horizontale. Les rares lignes indivisibles (une URL, un tableau)
+       gardent la leur. */
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+/* Ligne dont l'apercu est ouvert : l'icone reste allumee. */
+.source-inv-url.md-inv-open.is-open {
+    background: var(--accent, #0d6efd);
+    border-color: var(--accent, #0d6efd);
+    color: #ffffff;
+}
+
+/* Avertissement d'etape : un fait qui appelle une action, sans bloquer.
+   Pas de cadre ni de fond, comme les autres notes d'etape ; c'est le rouge
+   qui le distingue d'une simple explication. */
+.step-warning {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    margin: .6rem 0;
+    color: var(--error, #dc2626);
+    font-size: .78rem;
+}
+.step-warning i,
+.step-warning strong { color: inherit; }
+.step-warning strong { font-weight: 700; }
+/* `.tips-section > p` impose sa couleur et sa taille a tout paragraphe
+   d'etape : il faut le meme poids de selecteur pour passer devant. */
+.tips-section > p.step-warning {
+    color: var(--error, #dc2626);
+    font-size: .78rem;
+}
+
+/* ----- Colonne de gauche : ce que fait META-MD, puis ses acces ----- */
+.rail-presentation {
+    margin: .9rem 0 0;
+    color: var(--muted-strong, #4b5563);
+    font-size: .74rem;
+    line-height: 1.5;
+    /* Justifie, comme dans EDU-MD : le rail est une colonne etroite, un bord
+       droit en dents de scie y saute aux yeux plus qu'ailleurs. */
+    text-align: justify;
+    hyphens: auto;
+}
+.rail-presentation strong { color: var(--text, #1a1d21); }
+/* Les noms des deux applications sont poses en logotype, au fil de la phrase.
+   15 px de haut : les fichiers en font exactement 30, donc l'image est reduite
+   d'un facteur deux entier et reste nette, y compris sur un ecran ordinaire.
+   `baseline` les assied sur la ligne comme un mot ; sans le leger retrait, le
+   bas du logotype s'enfonce sous elle. */
+.rail-logo {
+    height: 15px;
+    width: auto;
+    vertical-align: baseline;
+    position: relative;
+    /* Le logotype porte du blanc sous ses lettres : cale sur la ligne de
+       base, il flottait au-dessus du texte voisin. Ce retrait l'y ramene. */
+    top: 4px;
+    /* Aucune marge : l'espace qui separe le logotype du mot voisin est celui
+       de la phrase elle-meme, comme entre deux mots. */
+    margin: 0;
+}
+/* ----- Bloc « forge » du bas de rail, repris tel quel d'EduMD -----
+   Trois liens gris clair sous un libelle en petites capitales : la meme
+   signature visuelle dans les trois applications. Les pastilles carrees qui
+   les portaient auparavant pesaient autant que l'engrenage, qui lui sert
+   tous les jours. */
+.rail-project-block { width:100%; margin-top:1.6rem; text-align:center; }
+.rail-forge-label { margin:0; color:#b5bac3; font-family:var(--font-code); font-size:.57rem; letter-spacing:.05em;
+    /* Une seule ligne, quelle que soit la chasse fixe du systeme :
+       la colonne est dimensionnee pour, et un libelle coupe en deux
+       se lit mal. */
+    white-space: nowrap; }
+.rail-project-links { margin:.45rem 0 0; }
+.rail-project-icon { display:inline-flex; align-items:center; justify-content:center; padding:.2rem; color:#b5bac3; font-size:.9rem; line-height:1; text-decoration:none; cursor:pointer; }
+.rail-project-icon:first-child { font-size:.78rem; }
+.rail-project-icon:hover,.rail-project-icon:focus-visible { color:#f17361; text-decoration:none; outline:0; }
+
+.rail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .35rem;
+    /* Toute la largeur du rail, sinon la boite se replie sur ses pastilles
+       et il n'y a plus rien a centrer. */
+    width: 100%;
+    margin: .9rem 0 0;
+}
+/* Meme boite carree pour l'engrenage et les liens du depot : ce sont cinq
+   acces de meme rang, l'un ouvre une fenetre, les autres sortent du site. */
+.rail-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 4px;
+    background: var(--panel, #ffffff);
+    color: var(--muted, #6b7280);
+    font-size: .8rem;
+    cursor: pointer;
+    text-decoration: none;
+}
+/* Survol noir, comme les boutons de l'interface et comme EDU-MD : la
+   pastille s'allume en plein plutot que de changer la couleur de son trait.
+   Le second selecteur n'est pas une redite : quatre pastilles sont des <a>,
+   la cinquieme (l'engrenage) est un <button>, et la regle generique
+   `button:hover:not(:disabled)` pese (0,2,1) contre (0,2,0) ici. Sans lui,
+   l'engrenage seul garde le survol gris des boutons ordinaires. */
+.rail-icone:hover,
+button.rail-icone:hover:not(:disabled) {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+    text-decoration: none;
+}
+@media (max-width: 1250px) {
+    /* En une seule colonne, la presentation passerait avant le titre de la
+       page : elle n'y a plus sa place, les acces restent. */
+    .rail-presentation { display: none; }
+    /* `width: auto` annule le 100% pose plus haut : en bandeau, les pastilles
+       se rangent a droite, elles n'ont plus de colonne a centrer. */
+    .rail-actions { width: auto; margin: 0 0 0 auto; }
+}
+
+/* ============ Choix de la source d'un corpus ============ */
+/* Trois cartes radio dans la modale de creation. La source decide de la forme
+   des etapes 1 et 3 ; elle se fixe une fois et ne se modifie plus, d'ou des
+   cartes plutot qu'un menu deroulant : on veut voir les trois d'un coup. */
+.source-picker {
+    border: 0;
+    padding: 0;
+    margin: .9rem 0 0;
+}
+.source-picker legend {
+    padding: 0;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: .45rem;
+}
+.source-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: .5rem;
+    margin-bottom: .5rem;
+}
+.source-choice { cursor: pointer; }
+/* Le radio reste dans le flux pour les lecteurs d'ecran et le clavier, mais
+   c'est la carte qui porte l'apparence de l'etat. */
+.source-choice input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.source-card {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    height: 100%;
+    padding: .7rem .8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #ffffff;
+    transition: border-color .12s, background .12s;
+}
+.source-card i { font-size: 1.1rem; color: var(--muted); margin-bottom: .2rem; }
+.source-card strong { font-size: .95rem; }
+.source-choice input:checked + .source-card {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+.source-choice input:checked + .source-card i { color: var(--accent); }
+.source-choice input:focus-visible + .source-card {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.source-choice:hover .source-card { border-color: var(--border-strong); }
+
+/* Pastille de source sur la carte d'un corpus, dans la liste. */
+.topic-source {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: .1rem .4rem;
+    border-radius: 3px;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--muted-strong);
+}
+
+/* ============ Etape 1 d'un corpus de site : le depot ============ */
+.depot-block {
+    margin-top: .6rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel-alt);
+}
+.depot-form { display: flex; flex-direction: column; gap: .1rem; }
+.depot-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: .8rem;
+    margin-top: .5rem;
+}
+@media (max-width: 640px) { .depot-row { grid-template-columns: 1fr; } }
+
+.depot-fiche {
+    margin-top: .9rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--border);
+}
+.depot-meta {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: .2rem .8rem;
+    margin: 0;
+    font-size: .85rem;
+}
+.depot-meta dt { color: var(--muted); }
+.depot-meta dd { margin: 0; overflow-wrap: anywhere; }
+.depot-resume { margin: .5rem 0 0; }
+
+/* ============ Page import.html ============ */
+/* Meme lecture qu'a l'etape 3 des PDF : ce qui est deja entre dans le corpus
+   porte une bordure verte. Le signal est le meme (une conversion active), la
+   couleur doit donc l'etre aussi. */
+body[data-page="import"] .source-row.is-imported {
+    border-color: var(--success);
+    box-shadow: inset 0 0 0 1px var(--success);
+}
+.page-nav-rank,
+.page-hors-nav {
+    font-size: .7rem;
+    padding: .05rem .35rem;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+.page-nav-rank { background: var(--accent-soft); color: var(--accent-strong); }
+.page-hors-nav { background: var(--panel-alt); color: var(--muted); border: 1px solid var(--border); }
+.page-lien {
+    flex: 0 0 auto;
+    color: var(--muted);
+    padding: .2rem .35rem;
+    border-radius: 4px;
+}
+.page-lien:hover { color: var(--accent); background: var(--accent-soft); }
+
+/* Page du depot qui n'a pas de texte a indexer : elle reste listee et
+   cochable, mais elle s'annonce pour ce qu'elle est. Un corpus documentaire
+   se cherche par son texte — un document vide y entre comme un extrait vide,
+   ce qui est pire qu'absent. */
+.page-raison {
+    margin: 0;
+    padding: 0 .8rem .5rem 2.6rem;
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+}
+body[data-page="import"] .source-row.is-sans-texte { background: var(--panel-alt); }
+body[data-page="import"] .source-row.is-sans-texte .source-name { color: var(--muted-strong); }
+
+/* ============ Modale de configuration ============ */
+/* Elle vit dans `modal-body`, qui porte deja ses marges : le `padding`
+   lateral que `dialog.app-modal label` applique aux modales sans corps
+   decalait le champ par rapport au texte qui l'explique. */
+dialog.app-modal .config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+dialog.app-modal .config-form label { padding: 0; }
+dialog.app-modal .config-form p { margin: 0; }
+dialog.app-modal .config-form .modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+/* Le statut prend la place restante, a gauche du bouton. */
+dialog.app-modal .config-form .modal-actions #config-statut { margin-right: auto; }
+dialog.app-modal header h3 { margin: 0; }
+
+/* Rangee secondaire du bandeau : « Détails » et « Plus tard » a parts egales. */
+.update-notice-actions .btn.primary { width: 100%; justify-content: center; }
+.update-notice-secondaire {
+    display: flex;
+    gap: 0.4rem;
+}
+.update-notice-secondaire > * {
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
+}
+/* Hors colonne, le bandeau flottant est large : la rangee unique reprend. */
+.update-notice-flottant .update-notice-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+}
+.update-notice-flottant .update-notice-actions .btn.primary { width: auto; }
+.update-notice-flottant .update-notice-secondaire > * { flex: 0 0 auto; }
+
+/* La boite de tache reprend l'allure du bandeau de mise a jour, en neutre :
+   ce n'est pas une proposition, c'est un compte rendu. */
+.update-notice.tache-en-cours {
+    border-color: var(--border-strong);
+}
+.update-notice.tache-en-cours strong { color: var(--text); }
+
+/* Dans une colonne de 15 rem, les boutons du bandeau se serrent : la taille
+   des boutons courants y prend trop de place pour ce qu'ils disent. */
+.update-notice .btn {
+    font-size: 0.72rem;
+    /* Meme correction optique que `.btn`, a l'echelle du bandeau. */
+    padding: 0.5rem 0.55rem 0.35rem;
+}

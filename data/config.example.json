@@ -1,0 +1,5 @@
+{
+  "albert_api_key": "sk-",
+  "autofill_model": "openai/gpt-oss-120b",
+  "autofill_max_chars": 60000
+}

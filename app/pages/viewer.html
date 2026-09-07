@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Viewer PDF / MD · META-MD (local)</title>
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self' 'unsafe-inline';
+        connect-src 'self';
+        img-src 'self' data:;
+        frame-src 'self';
+        form-action 'self';
+    ">
+    <link rel="icon" type="image/png" href="assets/meta-md-16x16.png">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/app.css">
+    <!-- Apparence du Markdown rendu. Fichier partage avec EduMD, identique
+         octet pour octet : c'est ce qui fait qu'un document se lit pareil
+         des deux cotes. Tout s'y regle a la main. -->
+    <!-- Composition des formules et coloration du code. Vendorises,
+         jamais un CDN : la CSP `default-src 'self'` bloque tout appel
+         externe. -->
+    <link rel="stylesheet" href="assets/katex/katex.min.css">
+    <link rel="stylesheet" href="assets/hljs/theme.min.css">
+    <link rel="stylesheet" href="assets/md-rendu.css">
+    <style>
+        /* L'apparence du Markdown rendu n'est PAS ici : elle est dans
+           `assets/md-rendu.css`, charge au-dessus, et partagee avec EduMD.
+           Ce <style> n'habille que les panneaux du visualiseur. */
+        /* Cette page occupe exactement la fenetre, et c'est elle qui ne
+           defile pas : seuls les trois volets le font. Sans cela, le
+           moindre depassement d'un volet fait defiler le document entier
+           — la barre haute et les volets remontent, et le fond nu
+           apparait sous eux : le bas de la page « se decolle ». `100dvh`
+           plutot que `100%` pour que la barre d'adresse d'un navigateur
+           mobile ne prenne pas sa hauteur sur le contenu. */
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        body { height: 100dvh; display: flex; flex-direction: column; }
+        .viewer-topbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: .5rem .8rem;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: .8rem;
+            flex-shrink: 0;
+        }
+        .viewer-topbar a { color: var(--muted); text-decoration: none; }
+        .viewer-topbar a:hover { color: var(--accent); }
+        .viewer-back {
+            background: transparent;
+            border: 0;
+            padding: 0;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: inherit;
+            cursor: pointer;
+        }
+        .viewer-back:hover { color: var(--accent); }
+        .viewer-topbar .sep { color: var(--border); }
+        .viewer-topbar .file { color: var(--text); font-weight: 600; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .viewer-topbar .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            flex: 0 0 auto;
+            font-family: var(--font-sans);
+        }
+        /* Tous les controles de la barre partagent la meme boite : la hauteur
+           est imposee, pas deduite des paddings, sinon un select non style et
+           un bouton ne tombent jamais a la meme taille. */
+        .viewer-topbar .topbar-btn,
+        .viewer-topbar .topbar-check,
+        .viewer-topbar .engine-switch select {
+            box-sizing: border-box;
+            height: 1.9rem;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 4px;
+            font-size: .78rem;
+            line-height: 1;
+        }
+        .viewer-topbar .topbar-btn {
+            gap: .35rem;
+            padding: 0 .6rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text);
+            font-size: .78rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .viewer-topbar .topbar-btn:hover { background: var(--panel-alt); border-color: var(--muted); }
+        .viewer-topbar .topbar-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .viewer-topbar .topbar-btn.primary:hover { background: var(--accent-strong, #0056d3); }
+        .viewer-topbar .topbar-btn:disabled { opacity: .5; cursor: default; }
+        .viewer-topbar .topbar-check {
+            gap: .35rem;
+            padding: 0 .55rem;
+            border: 1px solid var(--border);
+            font-family: var(--font-sans);
+            color: var(--text);
+            cursor: pointer;
+            background: transparent;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .viewer-topbar .topbar-check:hover { border-color: var(--muted); background: var(--panel-alt); }
+        .viewer-topbar .topbar-check input { margin: 0; cursor: pointer; }
+        .viewer-topbar .topbar-check.checked {
+            background: rgba(22, 163, 74, 0.1);
+            border-color: var(--success, #16a34a);
+        }
+        .viewer-topbar .topbar-check.checked span { color: var(--success, #16a34a); }
+        .viewer-topbar .topbar-sep {
+            width: 1px;
+            height: 1.4rem;
+            background: var(--border);
+            margin: 0 .3rem;
+        }
+        .viewer-topbar .status {
+            font-family: var(--font-sans);
+            font-size: .76rem;
+            color: var(--muted);
+            flex: 0 0 auto;
+        }
+        .viewer-topbar .status.saved { color: var(--success, #16a34a); }
+        .viewer-topbar .status.error { color: var(--error, #dc2626); }
+        .viewer-topbar .status.dirty { color: #a16207; }
+        .viewer-split {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 40% 1fr 22rem;
+            min-height: 0;
+        }
+        @media (max-width: 1100px) {
+            /* Les volets s'empilent : ils depassent alors la fenetre, et
+               c'est la grille qui defile puisque la page ne le fait plus. */
+            .viewer-split {
+                grid-template-columns: 1fr;
+                grid-auto-rows: minmax(300px, auto);
+                overflow: auto;
+            }
+        }
+        /* Un document importe d'un site n'a pas de PDF a montrer : le volet
+           gauche n'offrirait qu'un cadre vide. Il disparait, et les deux
+           colonnes restantes se repartissent la largeur. Le lien vers la page
+           publiee, en barre haute, le remplace. */
+        body.viewer-sans-pdf .viewer-pane.pdf { display: none; }
+        body.viewer-sans-pdf .viewer-split { grid-template-columns: 1fr 22rem; }
+        @media (max-width: 1100px) {
+            body.viewer-sans-pdf .viewer-split { grid-template-columns: 1fr; }
+        }
+        .viewer-lien-site {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            font-size: .8rem;
+            color: var(--muted);
+            padding: 0 .6rem;
+            text-decoration: none;
+        }
+        .viewer-lien-site:hover { color: var(--accent); text-decoration: underline; }
+        .viewer-pane {
+            overflow: auto;
+            min-width: 0;
+            background: var(--panel);
+        }
+        .viewer-pane.pdf { border-right: 1px solid var(--border); background: #525659; }
+        .viewer-pane.pdf iframe { width: 100%; height: 100%; border: 0; display: block; }
+        /* Fond blanc, et non le gris de l'application : on lit ici un
+           document, a cote du PDF dont il vient et de l'editeur qui l'ecrit,
+           tous deux blancs. Le gris est la couleur des surfaces de travail,
+           pas celle d'une page. */
+        .viewer-pane.md {
+            padding: 1rem 1rem 1.2rem;
+            background: var(--panel);
+            font-size: 15px;
+            line-height: 1.55;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+        }
+        /* Le retrait a droite degage la barre de defilement : c'est ce
+           conteneur qui defile, son contenu venait donc buter contre elle —
+           le bloc de front matter et les tableaux, larges de tout le panneau,
+           s'y collaient. */
+        .viewer-pane.md #md-content {
+            flex: 1 1 auto;
+            overflow: auto;
+            padding: 0 .5rem 0 0;
+        }
+
+        /* `#md-editor` n'est plus une zone de texte mais l'hote de
+           CodeMirror : il porte la place, l'editeur porte le reste.
+           `min-height: 0` est indispensable dans un flex, sans quoi le
+           scroller interne ne borne rien et la colonne s'allonge sans fin. */
+        .viewer-pane.md #md-editor {
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+            overflow: hidden;
+            background: #ffffff;
+        }
+        .viewer-pane.md #md-editor .cm-editor { height: 100%; }
+        .viewer-pane.md #md-editor .cm-editor.cm-focused { outline: none; }
+        .viewer-pane.md #md-editor .cm-scroller {
+            padding: 1.2rem 1.6rem;
+            font-family: var(--font-mono);
+            /* Sans ligatures : `--font-mono` commence par Cascadia Code, qui
+               fond `--` en tiret long et `**` en un seul glyphe. Sur du
+               Markdown brut c'est le texte lui-meme qu'on cesse de voir —
+               `<!-- page 1 -->` s'affichait `<!— page 1 —>` et un gras
+               semblait n'avoir qu'une etoile. */
+            font-variant-ligatures: none;
+            font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text);
+        }
+        /* Une image en `data:` repliee. Elle se presente comme un bloc et non
+           comme du texte : c'est ce qui dit qu'on ne peut pas la modifier au
+           caractere, seulement la garder ou la supprimer entiere. */
+        .viewer-pane.md #md-editor .cm-image-repliee {
+            display: inline-block;
+            max-width: 100%;
+            padding: 0 .35rem;
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 3px;
+            background: var(--panel-alt, #f6f7f9);
+            color: var(--muted, #6b7280);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* `overflow: hidden` sur un inline-block deplace sa baseline sur
+               le bord BAS de sa boite (CSS 2.1, 10.8.1) : avec
+               `vertical-align: baseline` la pastille se posait donc au-dessus
+               de la ligne au lieu de dedans. `middle` la centre sur le texte.
+               Le `line-height` reduit la maintient plus basse que la ligne
+               (13px x 1.2 + 2px de bordure < 13px x 1.5) : sans lui, elle
+               ecarte la ligne de 2px et le paragraphe se decale. */
+            line-height: 1.2;
+            vertical-align: middle;
+            cursor: default;
+        }
+        .viewer-pane.md .md-editor-note {
+            flex: 0 0 auto;
+            margin: 0;
+            padding: .45rem 1.6rem;
+            background: var(--panel-alt, #f6f7f9);
+            border-bottom: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 12px;
+        }
+        /* Le premier repere de page suit le front matter : inutile
+           d'ouvrir un blanc. Le front matter n'est pas du document, il
+           reste donc ici et non dans `md-rendu.css`. */
+        .md-render .viewer-md-fm + .md-page-mark { margin-top: .4rem; }
+
+        .viewer-pane.meta {
+            border-left: 1px solid var(--border);
+            padding: 1rem 1rem 1.2rem;
+            background: var(--panel);
+            font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        /* Titre commun aux panneaux MD et Meta. Il n'a plus a lutter contre
+           les titres du document : ceux-ci ne sont plus stylees par le
+           panneau mais par `.md-render`, qui ne descend que dans le rendu. */
+        .viewer-pane.meta h3.pane-title,
+        .viewer-pane.md h3.pane-title {
+            margin: 0 0 .5rem;
+            font-size: .82rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--primary, #0d6efd);
+            font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+        .viewer-pane.meta h3.pane-title i,
+        .viewer-pane.md h3.pane-title i { color: inherit; }
+        .viewer-pane.md.editing { padding: 0; }
+        .viewer-pane.md.editing .pane-title { display: none; }
+        /* Gris clair, sur un panneau desormais blanc : ce bloc n'est pas le
+           document, ce sont ses metadonnees. Sa bordure seule ne suffisait
+           plus a l'en distinguer une fois le fond du panneau passe au blanc. */
+        .viewer-md-fm {
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: .5rem .7rem;
+            margin-bottom: .8rem;
+            font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-size: .8rem;
+        }
+        .viewer-md-fm dl {
+            display: grid;
+            grid-template-columns: minmax(6rem, auto) 1fr;
+            gap: .15rem .8rem;
+            margin: 0;
+        }
+        .viewer-md-fm dl + dl {
+            margin-top: .4rem;
+            padding-top: .4rem;
+            border-top: 1px dashed var(--border);
+        }
+        .viewer-md-fm dt {
+            font-weight: 600;
+            color: var(--muted-strong, #4b5563);
+            font-size: .7rem;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+        .viewer-md-fm dd { margin: 0; word-break: break-word; }
+        .viewer-md-fm dl.fm-technical dt,
+        .viewer-md-fm dl.fm-technical dd {
+            color: var(--muted, #6b7280);
+            font-size: .68rem;
+        }
+        .viewer-md-fm a { color: var(--accent); text-decoration: none; }
+        .viewer-md-fm a:hover { text-decoration: underline; }
+        .meta-valid-checkbox {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .5rem .6rem;
+            margin-bottom: .8rem;
+            border: 1px solid var(--border, #e5e7eb);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: .85rem;
+            background: #ffffff;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .meta-valid-checkbox:hover { border-color: var(--muted, #6b7280); }
+        .meta-valid-checkbox.checked {
+            background: rgba(22, 163, 74, 0.08);
+            border-color: var(--success, #16a34a);
+        }
+        .meta-valid-checkbox.checked span { color: var(--success, #16a34a); font-weight: 600; }
+        .meta-valid-checkbox input { margin: 0; }
+        .viewer-pane.meta .meta-fields-grid { grid-template-columns: 1fr; }
+
+        .viewer-error { color: var(--error); padding: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="viewer-topbar">
+    <button type="button" id="viewer-back-btn" class="viewer-back" title="Retour">← Retour</button>
+    <span class="sep">|</span>
+    <span class="file" id="viewer-title">…</span>
+    <span class="status" id="viewer-status"></span>
+    <div class="topbar-actions">
+        <span class="topbar-sep"></span>
+        <label class="topbar-check">
+            <input type="checkbox" id="conversion-valid-input">
+            <span><i class="fa-solid fa-circle-check"></i> Conversion validée</span>
+        </label>
+        <span class="topbar-sep"></span>
+        <button type="button" class="topbar-btn" id="btn-edit-md" title="Passer en mode édition">
+            <i class="fa-solid fa-pen"></i> Éditer le MD
+        </button>
+        <button type="button" class="topbar-btn primary hidden" id="btn-save-md" title="Enregistrer les corrections">
+            <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+        </button>
+        <button type="button" class="topbar-btn hidden" id="btn-cancel-md" title="Annuler les corrections">
+            <i class="fa-solid fa-rotate-left"></i> Annuler
+        </button>
+    </div>
+</div>
+
+<div class="viewer-split">
+    <div class="viewer-pane pdf">
+        <iframe id="pdf-frame" title="Aperçu PDF"></iframe>
+    </div>
+    <div class="viewer-pane md" id="md-pane">
+        <h3 class="pane-title"><i class="fa-solid fa-file-lines"></i> Markdown</h3>
+        <div id="md-content" class="md-render"><em>Chargement…</em></div>
+        <p class="md-editor-note hidden" id="md-editor-note">Le front matter n'est pas modifiable ici : il est reconstruit à partir des métadonnées ci-contre.</p>
+        <div id="md-editor" class="hidden"></div>
+    </div>
+    <div class="viewer-pane meta" id="meta-pane">
+        <h3 class="pane-title"><i class="fa-solid fa-tags"></i> Métadonnées</h3>
+        <div id="meta-editor">
+            <p class="muted small">Chargement…</p>
+        </div>
+    </div>
+</div>
+
+<script src="assets/marked.js" defer></script>
+<script src="assets/purify.min.js?v=3.4.12" defer></script>
+<script src="assets/katex/katex.min.js" defer></script>
+<script src="assets/katex/auto-render.min.js" defer></script>
+<script src="assets/hljs/highlight.min.js" defer></script>
+<script src="assets/md-rendu.js?v=2" defer></script>
+<script src="assets/codemirror.js" defer></script>
+<script src="assets/viewer.js" defer></script>
+</body>
+</html>
